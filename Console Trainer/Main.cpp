@@ -1,6 +1,8 @@
 /*C++ CONSOLE TRAINER ENJOY*/
 
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 #include <Windows.h>
 #include <string>
 #include <ctime> // needed for our timer clock
@@ -14,11 +16,18 @@
 #define LOAD_LOCATION_2 VK_F7
 #define LOCATION_1 0
 #define LOCATION_2 1
+#define I_KEY 0x49
+#define J_KEY 0x4A
+#define K_KEY 0x4B
+#define L_KEY 0x4C
 void WriteToMemory(HANDLE hProcHandle);
 DWORD FindDmaAddy(int PointerLevel, HANDLE hProcHandle, DWORD Offsets[], DWORD BaseAddress);
 DWORD GetCoordinate(HANDLE hProcHandle, int coordinate);
 DWORD GetHealth(HANDLE hProcHandle);
 void WriteCoordinates(HANDLE hProcHandle, int locationNumber);
+void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite);
+float addToCoordinate(DWORD coordinate, float valueToAdd);
+
 
 //CREATES the string used to determine the name of our target window e.g. Calculator
 std::string GameName = "AssaultCube";
@@ -31,7 +40,7 @@ bool UpdateOnNextRun; //used to update the display menu only when something chan
 //-------AMMO VARS--------
 //number we are going to overwrite the current ammo with in bytes
 bool AmmoStatus; // used to DEFine wether ammo is on or not
-BYTE AmmoValue[] = {0x64,0x00,0x0,0x0}; 
+BYTE AmmoValue[] = {0x64,0x00,0x00,0x00}; 
 DWORD AmmoBaseAddress = {0x004DF73C}; 
 DWORD AmmoOffsets[] = {0x378, 0x14, 0x0}; //3 LEVEL pointer
 
@@ -43,10 +52,14 @@ DWORD HealthOffsets[] = {0xF4}; // 1 level pointer
 
 
 //-------Location VARS--------
-bool TeleportStatus; // used to DEFine wether ammo is on or not
+bool TeleportStatus; // used to DEFine whether teleport is allowed
+bool ableToMove; // used to DEFine whether you can move using i, j, k and l 
 DWORD LocationBaseAddress = {0x004DF73C};
 DWORD LocationOffsets[] = {0x34,0x3C,0x38}; // 1 level pointer
-
+bool iPressed;
+bool jPressed;
+bool kPressed;
+bool lPressed;
 DWORD TeleportLocationX1;
 DWORD TeleportLocationY1;
 DWORD TeleportLocationZ1;
@@ -71,9 +84,11 @@ int main()
 	std::string sAmmoStatus;
 	std::string sHealthStatus;
 	std::string sTeleportStatus;
+	std::string iStatus;
 	sAmmoStatus = "OFF";
 	sHealthStatus = "OFF";
 	sTeleportStatus = "OFF";
+	iStatus = "OFF";
 	OnePressTMR = clock();
 	while(!GetAsyncKeyState(VK_INSERT)) //Key is not = 'INSERT'
 	{
@@ -129,6 +144,7 @@ int main()
 				std::cout << "[F2] Unlimited Health and armor ->" << sHealthStatus << "<-" << std::endl<< std::endl;
 				std::cout << "[F3] Save Location ->" << sTeleportStatus << "<-" << std::endl<< std::endl;
 				std::cout << "[INSERT] Exit" << std::endl;
+				std::cout << "[F8] Move with I,J,K,L " << iStatus << std::endl;
 				
 				UpdateOnNextRun = false;
 				timeSinceLastUpdate = clock();
@@ -174,6 +190,12 @@ int main()
 					//changes the text to update on next display
 					if(TeleportStatus)sTeleportStatus = "ON";
 					else sTeleportStatus = "OFF";
+				} else if(GetAsyncKeyState(VK_F8)){
+					OnePressTMR = clock();
+					UpdateOnNextRun = true;
+					ableToMove = !ableToMove;
+					if(ableToMove)iStatus = "ON";
+					else iStatus = "OFF";	
 				}
 				if (TeleportStatus) {
 					if(GetAsyncKeyState(SAVE_LOCATION_1)){
@@ -196,15 +218,61 @@ int main()
 						
 					}
 					else if(GetAsyncKeyState(LOAD_LOCATION_1)) {
+						OnePressTMR = clock();
+						UpdateOnNextRun = true;
 						WriteCoordinates(hProcHandle, LOCATION_1);
 					}
 					else if(GetAsyncKeyState(LOAD_LOCATION_2)) {
+						OnePressTMR = clock();
+						UpdateOnNextRun = true;
 						WriteCoordinates(hProcHandle, LOCATION_2);
 					}
 				}
+				if (ableToMove) {
+					UpdateOnNextRun = true;
+					iPressed=false;
+					jPressed=false;
+					kPressed=false;
+					lPressed=false;
+					if (GetAsyncKeyState(I_KEY)) {
+						
+						iPressed=true;
+					}
+					if (GetAsyncKeyState(J_KEY)) {
+						
+						jPressed=true;
+					}
+					if (GetAsyncKeyState(K_KEY)) {
+						
+						kPressed=true;
+					}
+					if (GetAsyncKeyState(L_KEY)) {
+						
+						lPressed=true;
+					}
+					if (iPressed) {
+						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD),1);
+						WriteCoordinate(hProcHandle, XCOORD, newCoordinate);
+					}
+					if (jPressed) {
+						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD),-1);
+						WriteCoordinate(hProcHandle, ZCOORD, newCoordinate);
+					}
+					if (kPressed) {
+						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD),-1);
+						WriteCoordinate(hProcHandle, XCOORD, newCoordinate);
+					}
+					if (lPressed) {
+						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD),1);
+						WriteCoordinate(hProcHandle, ZCOORD, newCoordinate);
+					}
+
+				}
+
 			}
 		}
 	}
+
 	//Close any handles once the program is over
 	CloseHandle( hProcHandle ); 
 	CloseHandle(hGameWindow);
@@ -283,3 +351,20 @@ void WriteCoordinates(HANDLE hProcHandle, int locationNumber)
 	WriteProcessMemory( hProcHandle, (BYTE*)addressZ, &positions[locationNumber][ZCOORD], sizeof(positions[locationNumber][ZCOORD]), NULL);
 	
 }
+
+void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite) {
+	DWORD Location[] = {LocationOffsets[coordinate]};
+	DWORD address = (FindDmaAddy(1, hProcHandle, Location, LocationBaseAddress));
+	WriteProcessMemory( hProcHandle, (BYTE*)address, &valueToWrite, sizeof(valueToWrite), NULL);
+
+}
+
+float addToCoordinate(DWORD coordinate, float valueToAdd) {
+	float coordinateF = *(float *)&coordinate;
+	float newCoordinateF = coordinateF+valueToAdd;
+	DWORD newCoordinate = *((DWORD*)&newCoordinateF);
+	std::cout << "old coordinate is " << coordinateF<< std::endl;
+	std::cout << "new coordinate is " << *(float *)&newCoordinate << std::endl;
+	return newCoordinateF;
+}
+

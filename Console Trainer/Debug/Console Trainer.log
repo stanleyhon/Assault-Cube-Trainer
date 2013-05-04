@@ -1,10 +1,18 @@
-﻿Build started 4/27/2013 4:29:50 PM.
+﻿Build started 5/4/2013 4:20:20 PM.
      1>Project "I:\Documents and Settings\Daniel Morton\Desktop\Console Trainer\Console Trainer\Console Trainer.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating "Debug\Console Trainer.unsuccessfulbuild" because "AlwaysCreate" was specified.
        ClCompile:
          I:\Program Files\Microsoft Visual Studio 10.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TP /analyze- /errorReport:prompt Main.cpp
          Main.cpp
+     1>i:\documents and settings\daniel morton\desktop\console trainer\console trainer\main.cpp(254): warning C4244: 'initializing' : conversion from 'float' to 'DWORD', possible loss of data
+     1>i:\documents and settings\daniel morton\desktop\console trainer\console trainer\main.cpp(255): warning C4244: 'argument' : conversion from 'DWORD' to 'float', possible loss of data
+     1>i:\documents and settings\daniel morton\desktop\console trainer\console trainer\main.cpp(258): warning C4244: 'initializing' : conversion from 'float' to 'DWORD', possible loss of data
+     1>i:\documents and settings\daniel morton\desktop\console trainer\console trainer\main.cpp(259): warning C4244: 'argument' : conversion from 'DWORD' to 'float', possible loss of data
+     1>i:\documents and settings\daniel morton\desktop\console trainer\console trainer\main.cpp(262): warning C4244: 'initializing' : conversion from 'float' to 'DWORD', possible loss of data
+     1>i:\documents and settings\daniel morton\desktop\console trainer\console trainer\main.cpp(263): warning C4244: 'argument' : conversion from 'DWORD' to 'float', possible loss of data
+     1>i:\documents and settings\daniel morton\desktop\console trainer\console trainer\main.cpp(266): warning C4244: 'initializing' : conversion from 'float' to 'DWORD', possible loss of data
+     1>i:\documents and settings\daniel morton\desktop\console trainer\console trainer\main.cpp(267): warning C4244: 'argument' : conversion from 'DWORD' to 'float', possible loss of data
        ManifestResourceCompile:
          All outputs are up-to-date.
        Link:
@@ -23,4 +31,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:05.56
+Time Elapsed 00:00:07.31
