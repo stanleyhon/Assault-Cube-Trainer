@@ -20,6 +20,9 @@
 #define J_KEY 0x4A
 #define K_KEY 0x4B
 #define L_KEY 0x4C
+#define U_KEY 0x55
+#define O_KEY 0x4F
+
 void WriteToMemory(HANDLE hProcHandle);
 DWORD FindDmaAddy(int PointerLevel, HANDLE hProcHandle, DWORD Offsets[], DWORD BaseAddress);
 DWORD GetCoordinate(HANDLE hProcHandle, int coordinate);
@@ -60,6 +63,8 @@ bool iPressed;
 bool jPressed;
 bool kPressed;
 bool lPressed;
+bool uPressed;
+bool oPressed;
 DWORD TeleportLocationX1;
 DWORD TeleportLocationY1;
 DWORD TeleportLocationZ1;
@@ -229,11 +234,14 @@ int main()
 					}
 				}
 				if (ableToMove) {
+                    OnePressTMR = clock() - 300;
 					UpdateOnNextRun = true;
 					iPressed=false;
 					jPressed=false;
 					kPressed=false;
 					lPressed=false;
+                    uPressed=false;
+                    oPressed=false;
 					if (GetAsyncKeyState(I_KEY)) {
 						
 						iPressed=true;
@@ -250,22 +258,41 @@ int main()
 						
 						lPressed=true;
 					}
+                    if (GetAsyncKeyState(U_KEY)) {
+                        uPressed=true;
+                    }
+                    if (GetAsyncKeyState(O_KEY)) {
+                        oPressed=true;
+                    }
+
+
+                    int scale = 2;
 					if (iPressed) {
-						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD),1);
+						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD), scale);
 						WriteCoordinate(hProcHandle, XCOORD, newCoordinate);
 					}
 					if (jPressed) {
-						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD),-1);
+						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD),-1 * scale);
 						WriteCoordinate(hProcHandle, ZCOORD, newCoordinate);
 					}
 					if (kPressed) {
-						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD),-1);
+						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD),-1 * scale);
 						WriteCoordinate(hProcHandle, XCOORD, newCoordinate);
 					}
 					if (lPressed) {
-						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD),1);
+						DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD), scale);
 						WriteCoordinate(hProcHandle, ZCOORD, newCoordinate);
 					}
+                    
+                    // bailout button
+                    if (uPressed) {
+                        DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, YCOORD), 4 * scale);
+						WriteCoordinate(hProcHandle, YCOORD, newCoordinate);
+                    }
+                    if (oPressed) {
+                        DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, YCOORD), -4 * scale);
+						WriteCoordinate(hProcHandle, YCOORD, newCoordinate);
+                    }
 
 				}
 
