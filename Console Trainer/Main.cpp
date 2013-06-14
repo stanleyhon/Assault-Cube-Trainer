@@ -24,6 +24,7 @@
 #define O_KEY 0x4F
 #define PI 3.14159265
 
+void getPlayerHealth(HANDLE hProcHandle);
 void WriteToMemory(HANDLE hProcHandle);
 DWORD FindDmaAddy(int PointerLevel, HANDLE hProcHandle, DWORD Offsets[], DWORD BaseAddress);
 DWORD GetCoordinate(HANDLE hProcHandle, int coordinate);
@@ -147,7 +148,8 @@ int main() {
                 std::cout << "[F3] Save Location ->" << sTeleportStatus << "<-" << std::endl<< std::endl;
                 std::cout << "[INSERT] Exit" << std::endl;
                 std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl;
-				
+		getPlayerHealth(hProcHandle);
+		
                 UpdateOnNextRun = false;
                 timeSinceLastUpdate = clock();
             }
@@ -467,4 +469,30 @@ float addToCoordinate(DWORD coordinate, float valueToAdd) {
     //std::cout << "old coordinate is " << coordinateF<< std::endl;
     //std::cout << "new coordinate is " << newCoordinateF << std::endl;
     return newCoordinateF;
+}
+
+void getPlayerHealth(HANDLE hProcHandle) {
+	
+	DWORD players = 0x004E4E08;
+	DWORD addressOfNumPlayers = 0x004E4E10;
+	DWORD numPlayers;
+	ReadProcessMemory (hProcHandle, (LPCVOID)addressOfNumPlayers, &numPlayers, 4, NULL);
+	DWORD health = {0};
+	
+	DWORD playersArray;
+	ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
+
+	for (int player = 0; player < numPlayers; player++) {
+		DWORD addressOfPlayerState = (playersArray+(0x4*player));
+		DWORD playerState;
+		ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
+		
+		if (playerState != 0) {
+			DWORD addyOfHealth = playerState+0xF4;
+			ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfHealth), &health, 4, NULL);
+			std::cout << "player " <<  player << "health: " << health << std::endl;
+		} else {
+			std::cout << "player " << player << " is not available" << std::endl;
+		}
+	}
 }
