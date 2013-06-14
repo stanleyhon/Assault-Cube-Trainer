@@ -233,7 +233,7 @@ int main() {
                 }
 
                 if (ableToMove) {
-                    OnePressTMR = clock() - 400;
+                    //OnePressTMR = clock() - 400;
                     UpdateOnNextRun = true;
 
                     iPressed=false;
@@ -260,6 +260,22 @@ int main() {
                     if (GetAsyncKeyState(O_KEY)) {
                         oPressed=true;
                     }
+
+					/*
+
+					DWORD tempAngle = GetAngle(hProcHandle, 0);
+					hangle = *((float *)&tempAngle);
+					tempAngle = GetAngle(hProcHandle, 1);
+					vangle = *((float *)&tempAngle);
+					xdisplace = sin(hangle*PI/180) ;
+					zdisplace = cos(hangle*PI/180);
+					ydisplace = sin(vangle*PI/180);
+					float looklen = sqrtf(xdisplace*xdisplace + ydisplace*ydisplace + zdisplace*zdisplace);
+					xdisplace = scale * (xdisplace/looklen);
+					zdisplace = -1 * scale * (zdisplace/looklen);
+					ydisplace = 1.5 * scale * (ydisplace/looklen);
+
+					*/
 
                     DWORD tempAngle = GetAngle(hProcHandle, 0);
                     hangle = *((float *)&tempAngle);
