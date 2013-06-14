@@ -549,9 +549,11 @@ void getPlayerHealth(HANDLE hProcHandle) {
 		if (playerState != 0) {
 			DWORD addyOfHealth = playerState+0xF4;
 			ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfHealth), &health, 4, NULL);
-			std::cout << "player " <<  player << "health: " << health << std::endl;
-		} else {
-			std::cout << "player " << player << " is not available" << std::endl;
+			if (health > 100) {
+				std::cout << "player " <<  player << " health: DEAD!"<< std::endl;
+			} else {
+				std::cout << "player " <<  player << " health: " << health <<std::endl;
+			}
 		}
 	}
 }
