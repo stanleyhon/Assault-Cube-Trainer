@@ -16,7 +16,7 @@
 #define LOAD_LOCATION_2 VK_F7
 #define LOCATION_1 0
 #define LOCATION_2 1
-#define I_KEY 0x01
+#define I_KEY 0x49
 #define J_KEY 0x4A
 #define K_KEY 0x4B
 #define L_KEY 0x4C
@@ -136,21 +136,22 @@ int main() {
             // to make sure game is available etc.
             if (UpdateOnNextRun || clock() - timeSinceLastUpdate > 5000)
             {
+				
                 system("cls");
                 std::cout << "----------------------------------------------------" << std::endl;
                 std::cout << "        AssaultCube memory hacker" << std::endl;
                 std::cout << "----------------------------------------------------" << std::endl << std::endl;
                 std::cout << "GAME STATUS:"<< GameStatus  <<"   " << std::endl << std::endl;
-                std::cout << "[F1] Unlimited ammo -> "<< sAmmoStatus <<" <-" << std::endl<< std::endl;
+                std::cout << "[F1] Unlimited ammo ->"<< sAmmoStatus <<"<-" << std::endl<< std::endl;
                 std::cout << "[F2] Unlimited Health and armor ->" << sHealthStatus << "<-" << std::endl<< std::endl;
                 std::cout << "[F3] Save Location ->" << sTeleportStatus << "<-" << std::endl<< std::endl;
                 std::cout << "[INSERT] Exit" << std::endl;
-                std::cout << "[F8] Move with I,J,K,L " << iStatus << std::endl;
-
+                std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl;
+				
                 UpdateOnNextRun = false;
                 timeSinceLastUpdate = clock();
             }
-
+		
             if (IsGameAvail) {
                 WriteToMemory (hProcHandle);
             }
@@ -231,11 +232,11 @@ int main() {
                         WriteCoordinates(hProcHandle, LOCATION_2);
                     }
                 }
-
+				
                 if (ableToMove) {
-                    //OnePressTMR = clock() - 400;
                     UpdateOnNextRun = true;
 
+					bool move=false;
                     iPressed=false;
                     jPressed=false;
                     kPressed=false;
@@ -261,53 +262,112 @@ int main() {
                         oPressed=true;
                     }
 
-					/*
-
-					DWORD tempAngle = GetAngle(hProcHandle, 0);
-					hangle = *((float *)&tempAngle);
-					tempAngle = GetAngle(hProcHandle, 1);
-					vangle = *((float *)&tempAngle);
-					xdisplace = sin(hangle*PI/180) ;
-					zdisplace = cos(hangle*PI/180);
-					ydisplace = sin(vangle*PI/180);
-					float looklen = sqrtf(xdisplace*xdisplace + ydisplace*ydisplace + zdisplace*zdisplace);
-					xdisplace = scale * (xdisplace/looklen);
-					zdisplace = -1 * scale * (zdisplace/looklen);
-					ydisplace = 1.5 * scale * (ydisplace/looklen);
-
-					*/
-
-                    DWORD tempAngle = GetAngle(hProcHandle, 0);
-                    hangle = *((float *)&tempAngle);
-                    tempAngle = GetAngle(hProcHandle, 1);
-                    vangle = *((float *)&tempAngle);
-
-                    float scale = 2;
-                    float xdisplace = scale * sin (hangle*PI/180);
-                    float zdisplace = -1 * scale * cos (hangle*PI/180);
-                    float ydisplace = 1.5 * scale * sin (vangle*PI/180);
-
-                    std::cout << "Angle: " << hangle << " X: " << xdisplace << " Z: " << zdisplace << " Y: " << ydisplace << std::endl;
-
+					float scale = 0.001;
+					float vertscale = 3;
                     if (iPressed) {
-                        DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD), xdisplace);
+						// Change vert/hori angles dependant on key pressed
+						DWORD tempAngle = GetAngle(hProcHandle, 0);
+						hangle = *((float *)&tempAngle);
+						tempAngle = GetAngle(hProcHandle, 1);
+						vangle = *((float *)&tempAngle);
+						
+						// Use trig to figure out angles
+	
+						float xdisplace = sin (hangle*PI/180);
+						float zdisplace = cos (hangle*PI/180);
+						float ydisplace = sin (vangle*PI/180);
+
+						// Normalise vector + apply scaling
+						float looklen = sqrtf(xdisplace*xdisplace + ydisplace*ydisplace + zdisplace*zdisplace);
+						xdisplace = scale * (xdisplace/looklen);
+						zdisplace = -1 * scale * (zdisplace/looklen);
+						ydisplace = vertscale * scale * (ydisplace/looklen);
+
+						// Set new X, Y, Z coords
+                        float newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD), xdisplace);
                         WriteCoordinate(hProcHandle, XCOORD, newCoordinate);
-                        DWORD newCoordinate2 = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD), zdisplace);
+                        float newCoordinate2 = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD), zdisplace);
                         WriteCoordinate(hProcHandle, ZCOORD, newCoordinate2);
-                        newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, YCOORD), ydisplace);
-                        WriteCoordinate(hProcHandle, YCOORD, newCoordinate);
+                        float newCoordinate3 = addToCoordinate(GetCoordinate(hProcHandle, YCOORD), ydisplace);
+                        WriteCoordinate(hProcHandle, YCOORD, newCoordinate3);
                     }
                     if (jPressed) {
-                        DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD),-1 * scale);
-                        WriteCoordinate(hProcHandle, ZCOORD, newCoordinate);
+						// Change vert/hori angles dependant on key pressed
+						DWORD tempAngle = GetAngle(hProcHandle, 0);
+						hangle = fmod(*((float *)&tempAngle) + 270,360);
+						// tempAngle = GetAngle(hProcHandle, 1);
+						// vangle = *((float *)&tempAngle);
+						
+						// Use trig to figure out angles
+						float xdisplace = sin (hangle*PI/180);
+						float zdisplace = cos (hangle*PI/180);
+						// float ydisplace = sin (vangle*PI/180);
+
+						// Normalise vector + apply scaling
+						float looklen = sqrtf(xdisplace*xdisplace + zdisplace*zdisplace);
+						xdisplace = scale * (xdisplace/looklen);
+						zdisplace = -1 * scale * (zdisplace/looklen);
+						// ydisplace = vertscale * scale * (ydisplace/looklen);
+
+						// Set new X, Y, Z coords
+                        float newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD), xdisplace);
+                        WriteCoordinate(hProcHandle, XCOORD, newCoordinate);
+                        float newCoordinate2 = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD), zdisplace);
+                        WriteCoordinate(hProcHandle, ZCOORD, newCoordinate2);
+                        // float newCoordinate3 = addToCoordinate(GetCoordinate(hProcHandle, YCOORD), ydisplace);
+                        // WriteCoordinate(hProcHandle, YCOORD, newCoordinate3);
                     }
                     if (kPressed) {
-                        DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD),-1 * scale);
+						// Change vert/hori angles dependant on key pressed
+						DWORD tempAngle = GetAngle(hProcHandle, 0);
+						hangle = fmod(*((float *)&tempAngle)+180,360);
+						tempAngle = GetAngle(hProcHandle, 1);
+						vangle = *((float *)&tempAngle);
+						
+						// Use trig to figure out angles
+						float xdisplace = sin (hangle*PI/180);
+						float zdisplace = cos (hangle*PI/180);
+						float ydisplace = sin (vangle*PI/180);
+
+						// Normalise vector + apply scaling
+						float looklen = sqrtf(xdisplace*xdisplace + ydisplace*ydisplace + zdisplace*zdisplace);
+						xdisplace = scale * (xdisplace/looklen);
+						zdisplace = -1 * scale * (zdisplace/looklen);
+						ydisplace = -1 * vertscale * scale * (ydisplace/looklen);
+
+						// Set new X, Y, Z coords
+                        float newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD), xdisplace);
                         WriteCoordinate(hProcHandle, XCOORD, newCoordinate);
+                        float newCoordinate2 = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD), zdisplace);
+                        WriteCoordinate(hProcHandle, ZCOORD, newCoordinate2);
+                        float newCoordinate3 = addToCoordinate(GetCoordinate(hProcHandle, YCOORD), ydisplace);
+                        WriteCoordinate(hProcHandle, YCOORD, newCoordinate3);
                     }
                     if (lPressed) {
-                        DWORD newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD), scale);
-                        WriteCoordinate(hProcHandle, ZCOORD, newCoordinate);
+						// Change vert/hori angles dependant on key pressed
+						DWORD tempAngle = GetAngle(hProcHandle, 0);
+						hangle = fmod(*((float *)&tempAngle) + 90,360);
+						// tempAngle = GetAngle(hProcHandle, 1);
+						// vangle = *((float *)&tempAngle) * -1;
+						
+						// Use trig to figure out angles
+						float xdisplace = sin (hangle*PI/180);
+						float zdisplace = cos (hangle*PI/180);
+						// float ydisplace = sin (vangle*PI/180);
+
+						// Normalise vector + apply scaling
+						float looklen = sqrtf(xdisplace*xdisplace + zdisplace*zdisplace);
+						xdisplace = scale * (xdisplace/looklen);
+						zdisplace = -1 * scale * (zdisplace/looklen);
+						// ydisplace = vertscale * scale * (ydisplace/looklen);
+
+						// Set new X, Y, Z coords
+                        float newCoordinate = addToCoordinate(GetCoordinate(hProcHandle, XCOORD), xdisplace);
+                        WriteCoordinate(hProcHandle, XCOORD, newCoordinate);
+                        float newCoordinate2 = addToCoordinate(GetCoordinate(hProcHandle, ZCOORD), zdisplace);
+                        WriteCoordinate(hProcHandle, ZCOORD, newCoordinate2);
+                        // float newCoordinate3 = addToCoordinate(GetCoordinate(hProcHandle, YCOORD), ydisplace);
+                        // WriteCoordinate(hProcHandle, YCOORD, newCoordinate3);
                     }
                 }
             }
@@ -396,6 +456,7 @@ void WriteCoordinates(HANDLE hProcHandle, int locationNumber) {
 void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite) {
     DWORD Location[] = {LocationOffsets[coordinate]};
     DWORD address = (FindDmaAddy(1, hProcHandle, Location, LocationBaseAddress));
+	//std::cout << "ACTUAL WRITING " << valueToWrite << std::endl;
     WriteProcessMemory (hProcHandle, (BYTE*)address, &valueToWrite, sizeof(valueToWrite), NULL);
 
 }
@@ -403,8 +464,7 @@ void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite) {
 float addToCoordinate(DWORD coordinate, float valueToAdd) {
     float coordinateF = *(float *)&coordinate;
     float newCoordinateF = coordinateF+valueToAdd;
-    DWORD newCoordinate = *((DWORD*)&newCoordinateF);
-    std::cout << "old coordinate is " << coordinateF<< std::endl;
-    std::cout << "new coordinate is " << *(float *)&newCoordinate << std::endl;
+    //std::cout << "old coordinate is " << coordinateF<< std::endl;
+    //std::cout << "new coordinate is " << newCoordinateF << std::endl;
     return newCoordinateF;
 }
