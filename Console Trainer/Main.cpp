@@ -23,6 +23,7 @@
 #define U_KEY 0x55
 #define O_KEY 0x4F
 #define M1_KEY 0x01
+#define Q_KEY 0x51
 #define PI 3.14159265
 
 void getPlayerHealth(HANDLE hProcHandle);
@@ -35,9 +36,10 @@ void WriteCoordinates(HANDLE hProcHandle, int locationNumber);
 void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite);
 float addToCoordinate(DWORD coordinate, float valueToAdd);
 DWORD GetAngle(HANDLE hProcHandle, int direction);
-DWORD getClosestPlayer(HANDLE hProcHandle, bool tele);
-
-//CREATES the string used to determine the name of our target window e.g. Calculator
+DWORD getClosestPlayer(HANDLE hProcHandle);
+void SetAngle(HANDLE hProcHandle, int direction, float angle);
+void aimAtPlayer(HANDLE hProchHandle, int player, bool tele);
+//CREATES the string used to determine the name of our target window
 std::string GameName = "AssaultCube";
 LPCSTR LGameWindow = "AssaultCube"; //<- MAKE SURE it matches the window name
 std::string GameStatus;
@@ -66,9 +68,10 @@ DWORD LocationOffsets[] = {0x34,0x3C,0x38}; // 1 level pointer
 bool iPressed;
 bool jPressed;
 bool kPressed;
-bool lPressed;
+bool lPressed;	
 bool uPressed;
 bool oPressed;
+bool qPressed;
 DWORD TeleportLocationX1;
 DWORD TeleportLocationY1;
 DWORD TeleportLocationZ1;
@@ -116,7 +119,7 @@ int main() {
         // we make options available again
 
         if(clock() - GameAvailTMR > 1000) {
-			getClosestPlayer(hProcHandle,false);
+			getClosestPlayer(hProcHandle);
             GameAvailTMR = clock();
             // Declare game unavailable by default
             // if it is available then it will change immediately
@@ -266,6 +269,7 @@ int main() {
                     lPressed=false;
                     uPressed=false;
                     oPressed=false;
+					qPressed=false;
                     if (GetAsyncKeyState(I_KEY)) {
                         iPressed=true;
                     }
@@ -283,6 +287,9 @@ int main() {
                     }
                     if (GetAsyncKeyState(O_KEY)) {
                         oPressed=true;
+                    }
+					if (GetAsyncKeyState(Q_KEY)) {
+                        qPressed=true;
                     }
 
 					float scale = 0.001;
@@ -392,6 +399,16 @@ int main() {
                         // float newCoordinate3 = addToCoordinate(GetCoordinate(hProcHandle, YCOORD), ydisplace);
                         // WriteCoordinate(hProcHandle, YCOORD, newCoordinate3);
                     }
+					if (qPressed) {
+						// Aimbot time
+						int closestPlayer = getClosestPlayer(hProcHandle);
+						if (closestPlayer != -1) {
+							//std::cout << "Going to aim at player " << closestPlayer << std::endl;
+							aimAtPlayer(hProcHandle,closestPlayer,false);
+						} else {
+							//std::cout << "Couldnt find a close player. Map must be empty" << std::endl;
+						}
+					}
                 }
 				if(ableToBlink){
 					UpdateOnNextRun = true;
@@ -402,7 +419,13 @@ int main() {
                     }
 
 					if(m1Pressed){
-						getClosestPlayer(hProcHandle,true);
+						int closestPlayer = getClosestPlayer(hProcHandle);
+						if (closestPlayer != -1) {
+							//std::cout << "Going to aim at player " << closestPlayer << std::endl;
+							aimAtPlayer(hProcHandle,closestPlayer,true);
+						} else {
+							//std::cout << "Couldnt find a close player. Map must be empty" << std::endl;
+						}
 					}
 				}
 
@@ -483,6 +506,16 @@ DWORD GetAngle(HANDLE hProcHandle, int direction) {
     return angleValue;
 }
 
+void SetAngle(HANDLE hProcHandle, int direction, float angle) {
+    //std::cout << "ran getoordinate with" << coordinate << std::endl;
+    DWORD AngleOffset[] = {AngleOffsets[direction]};
+    //std::cout << "location offset "<<coordinate<<" is "<<LocationOffsets[coordinate]<<std::endl;
+    DWORD angleLocation = (FindDmaAddy(1, hProcHandle, AngleOffset, LocationBaseAddress));
+    
+	// Write the angle to memory
+	WriteProcessMemory (hProcHandle, (BYTE*)angleLocation, &angle, sizeof(angle), NULL);
+}
+
 void WriteCoordinates(HANDLE hProcHandle, int locationNumber) {
     //std::cout << "ran getoordinate with" << coordinate << std::endl;
     DWORD XLOC[] = {LocationOffsets[XCOORD]};
@@ -503,7 +536,6 @@ void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite) {
     DWORD address = (FindDmaAddy(1, hProcHandle, Location, LocationBaseAddress));
 	//std::cout << "ACTUAL WRITING " << valueToWrite << std::endl;
     WriteProcessMemory (hProcHandle, (BYTE*)address, &valueToWrite, sizeof(valueToWrite), NULL);
-
 }
 
 float addToCoordinate(DWORD coordinate, float valueToAdd) {
@@ -514,8 +546,66 @@ float addToCoordinate(DWORD coordinate, float valueToAdd) {
     return newCoordinateF;
 }
 
+void aimAtPlayer(HANDLE hProcHandle, int player, bool tele) {
+	DWORD players = 0x004E4E08;
+	DWORD playersArray;
+	ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
+	
+	DWORD addressOfPlayerState = (playersArray+(0x4*player));
+	DWORD playerState;
+	ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
+	
+	// If the player actually exists
+	if (playerState != 0) {
+		DWORD xcoord = GetCoordinate(hProcHandle,XCOORD);
+		DWORD ycoord = GetCoordinate(hProcHandle,YCOORD);
+		DWORD zcoord = GetCoordinate(hProcHandle,ZCOORD);
+		float myxcoord = *(float *)&xcoord;
+		float myycoord = *(float *)&ycoord;
+		float myzcoord = *(float *)&zcoord;
+
+		xcoord = GetPlayerCoordinate(hProcHandle,playerState,XCOORD);
+		ycoord = GetPlayerCoordinate(hProcHandle,playerState,YCOORD);
+		zcoord = GetPlayerCoordinate(hProcHandle,playerState,ZCOORD);
+		float hisxcoord = *(float *)&xcoord;
+		float hisycoord = *(float *)&ycoord;
+		float hiszcoord = *(float *)&zcoord;
+
+		if(tele){
+			// TODO: Doesnt actualyl tele to them
+			// Could be syncro issue? extra cycles before mass teleporting?
+			// Could be angle problem?
+			//std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
+			WriteCoordinate(hProcHandle, XCOORD, hisxcoord);
+			WriteCoordinate(hProcHandle, YCOORD, hisycoord);
+            WriteCoordinate(hProcHandle, ZCOORD, hiszcoord);
+		}
+
+		// TODO - delete this shit
+		float xdisplace = hisxcoord-myxcoord;
+		float ydisplace = hisycoord-myycoord;
+		float zdisplace = hiszcoord-myzcoord;
+
+		float looklen = sqrtf(xdisplace*xdisplace + ydisplace*ydisplace + zdisplace*zdisplace);
+		
+		xdisplace = (xdisplace/looklen);
+		zdisplace = (zdisplace/looklen);
+		ydisplace = (ydisplace/looklen);
+
+		float temphangle = (180/PI) * atan2f(zdisplace,xdisplace) + 90;
+		float tempvangle = (180/PI) * asin(ydisplace);
+		//std::cout << "Me " << " myxcoord " << myxcoord << " myycoord " << myycoord << " myzcoord " << myzcoord << std::endl;
+		// std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
+		//std::cout << "Angle should be set to " <<  temphangle << " and " << tempvangle << std::endl;
+
+		SetAngle(hProcHandle,0,temphangle);
+		SetAngle(hProcHandle,1,tempvangle);
+
+	}
+}
+
 // Returns the closest players number
-DWORD getClosestPlayer(HANDLE hProcHandle, bool tele) {
+DWORD getClosestPlayer(HANDLE hProcHandle) {
 	DWORD players = 0x004E4E08;
 	DWORD addressOfNumPlayers = 0x004E4E10;
 	DWORD numPlayers;
@@ -525,8 +615,8 @@ DWORD getClosestPlayer(HANDLE hProcHandle, bool tele) {
 	DWORD playersArray;
 	ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
 
-	int closestPlayer = 0;
-	DWORD closestDistance = 0;
+	int closestPlayer = -1;
+	DWORD closestDistance = 9999999;
 	for (int player = 0; player < numPlayers && numPlayers < 15 && numPlayers > 0; player++) {
 		DWORD addressOfPlayerState = (playersArray+(0x4*player));
 		DWORD playerState;
@@ -540,7 +630,6 @@ DWORD getClosestPlayer(HANDLE hProcHandle, bool tele) {
 			float myycoord = *(float *)&ycoord;
 			float myzcoord = *(float *)&zcoord;
 
-
 			xcoord = GetPlayerCoordinate(hProcHandle,playerState,XCOORD);
 			ycoord = GetPlayerCoordinate(hProcHandle,playerState,YCOORD);
 			zcoord = GetPlayerCoordinate(hProcHandle,playerState,ZCOORD);
@@ -549,14 +638,12 @@ DWORD getClosestPlayer(HANDLE hProcHandle, bool tele) {
 			float hiszcoord = *(float *)&zcoord;
 
 			float distancebetweenus = sqrtf((hisxcoord-myxcoord)*(hisxcoord-myxcoord) + (hisycoord-myycoord)*(hisycoord-myycoord) + (hiszcoord-myzcoord)*(hiszcoord-myzcoord));
-
-			if(tele){
-				WriteCoordinate(hProcHandle, XCOORD, hisxcoord);
-				WriteCoordinate(hProcHandle, YCOORD, hisycoord);
-                WriteCoordinate(hProcHandle, ZCOORD, hiszcoord);
-			}
-			//std::cout << "PLAYER " <<  player << " X: " << hisxcoord << " Y: " << hisycoord << " Z: " << hiszcoord << std::endl;
+			//std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
 			//std::cout << "player " <<  player << "  distance = " << distancebetweenus << std::endl;
+			if (distancebetweenus < closestDistance) {
+				closestDistance = distancebetweenus;
+				closestPlayer = player;
+			}
 		} else {
 			//std::cout << "player " << player << " is not available" << std::endl;
 		}
@@ -565,8 +652,7 @@ DWORD getClosestPlayer(HANDLE hProcHandle, bool tele) {
 	return closestPlayer;
 }
 
-void getPlayerHealth(HANDLE hProcHandle) {
-	
+void getPlayerHealth(HANDLE hProcHandle) {	
 	DWORD players = 0x004E4E08;
 	DWORD addressOfNumPlayers = 0x004E4E10;
 	DWORD numPlayers;
@@ -585,9 +671,9 @@ void getPlayerHealth(HANDLE hProcHandle) {
 			DWORD addyOfHealth = playerState+0xF4;
 			ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfHealth), &health, 4, NULL);
 			if (health > 100) {
-				std::cout << "player " <<  player << " health: DEAD!"<< std::endl;
+				//std::cout << "player " <<  player << " health: DEAD!"<< std::endl;
 			} else {
-				std::cout << "player " <<  player << " health: " << health <<std::endl;
+				//std::cout << "player " <<  player << " health: " << health <<std::endl;
 			}
 		}
 	}
