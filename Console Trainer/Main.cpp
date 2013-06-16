@@ -22,6 +22,7 @@
 #define L_KEY 0x4C
 #define U_KEY 0x55
 #define O_KEY 0x4F
+#define M1_KEY 0x01
 #define PI 3.14159265
 
 void getPlayerHealth(HANDLE hProcHandle);
@@ -34,7 +35,7 @@ void WriteCoordinates(HANDLE hProcHandle, int locationNumber);
 void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite);
 float addToCoordinate(DWORD coordinate, float valueToAdd);
 DWORD GetAngle(HANDLE hProcHandle, int direction);
-DWORD getClosestPlayer(HANDLE hProcHandle);
+DWORD getClosestPlayer(HANDLE hProcHandle, bool tele);
 
 //CREATES the string used to determine the name of our target window e.g. Calculator
 std::string GameName = "AssaultCube";
@@ -81,6 +82,10 @@ DWORD AngleOffsets[] = {0x40,0x44}; // 1 level pointer
 float hangle;
 float vangle;
 
+// Blink vars
+bool ableToBlink;
+bool m1Pressed;
+
 int main() {
 
     //Declare our handles as NULL to avoid crashes when closing if they were unused e.g. player starts trainer and closes it before doing any cheats
@@ -95,10 +100,12 @@ int main() {
     std::string sHealthStatus;
     std::string sTeleportStatus;
     std::string iStatus;
+	std::string sBlinkStatus;
     sAmmoStatus = "OFF";
     sHealthStatus = "OFF";
     sTeleportStatus = "OFF";
     iStatus = "OFF";
+	sBlinkStatus = "OFF";
     OnePressTMR = clock();
     while(!GetAsyncKeyState(VK_INSERT)) { //Key is not = 'INSERT'
         // Does a series of checks every x ms and
@@ -109,7 +116,7 @@ int main() {
         // we make options available again
 
         if(clock() - GameAvailTMR > 1000) {
-			getClosestPlayer(hProcHandle);
+			getClosestPlayer(hProcHandle,false);
             GameAvailTMR = clock();
             // Declare game unavailable by default
             // if it is available then it will change immediately
@@ -141,7 +148,7 @@ int main() {
             if (UpdateOnNextRun || clock() - timeSinceLastUpdate > 5000)
             {
 				
-                /*system("cls");
+                system("cls");
                 std::cout << "----------------------------------------------------" << std::endl;
                 std::cout << "        AssaultCube memory hacker" << std::endl;
                 std::cout << "----------------------------------------------------" << std::endl << std::endl;
@@ -151,7 +158,8 @@ int main() {
                 std::cout << "[F3] Save Location ->" << sTeleportStatus << "<-" << std::endl<< std::endl;
                 std::cout << "[INSERT] Exit" << std::endl;
                 std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl;
-				*/
+				std::cout << "[F9] Blink Strike ->" << sBlinkStatus << "<-" << std::endl;
+				
 				getPlayerHealth(hProcHandle);
 		
                 UpdateOnNextRun = false;
@@ -208,7 +216,16 @@ int main() {
                     } else {
                         iStatus = "OFF";
                     }
-                }
+                }else if (GetAsyncKeyState(VK_F9)) {
+					OnePressTMR = clock();
+                    UpdateOnNextRun = true;
+                    ableToBlink = !ableToBlink;
+                    if (ableToBlink) {
+                        sBlinkStatus = "ON";
+                    } else {
+                        sBlinkStatus = "OFF";
+                    }
+				}
                 
                 if (TeleportStatus) {
                     if (GetAsyncKeyState(SAVE_LOCATION_1)) {
@@ -376,6 +393,19 @@ int main() {
                         // WriteCoordinate(hProcHandle, YCOORD, newCoordinate3);
                     }
                 }
+				if(ableToBlink){
+					UpdateOnNextRun = true;
+
+                    m1Pressed=false;
+					if (GetAsyncKeyState(M1_KEY)) {
+                        m1Pressed=true;
+                    }
+
+					if(m1Pressed){
+						getClosestPlayer(hProcHandle,true);
+					}
+				}
+
             }
         }
     }
@@ -485,7 +515,7 @@ float addToCoordinate(DWORD coordinate, float valueToAdd) {
 }
 
 // Returns the closest players number
-DWORD getClosestPlayer(HANDLE hProcHandle) {
+DWORD getClosestPlayer(HANDLE hProcHandle, bool tele) {
 	DWORD players = 0x004E4E08;
 	DWORD addressOfNumPlayers = 0x004E4E10;
 	DWORD numPlayers;
@@ -520,14 +550,19 @@ DWORD getClosestPlayer(HANDLE hProcHandle) {
 
 			float distancebetweenus = sqrtf((hisxcoord-myxcoord)*(hisxcoord-myxcoord) + (hisycoord-myycoord)*(hisycoord-myycoord) + (hiszcoord-myzcoord)*(hiszcoord-myzcoord));
 
-			std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
-			std::cout << "player " <<  player << "  distance = " << distancebetweenus << std::endl;
+			if(tele){
+				WriteCoordinate(hProcHandle, XCOORD, hisxcoord);
+				WriteCoordinate(hProcHandle, YCOORD, hisycoord);
+                WriteCoordinate(hProcHandle, ZCOORD, hiszcoord);
+			}
+			//std::cout << "PLAYER " <<  player << " X: " << hisxcoord << " Y: " << hisycoord << " Z: " << hiszcoord << std::endl;
+			//std::cout << "player " <<  player << "  distance = " << distancebetweenus << std::endl;
 		} else {
-			std::cout << "player " << player << " is not available" << std::endl;
+			//std::cout << "player " << player << " is not available" << std::endl;
 		}
 	}
 
-	return 0;
+	return closestPlayer;
 }
 
 void getPlayerHealth(HANDLE hProcHandle) {
