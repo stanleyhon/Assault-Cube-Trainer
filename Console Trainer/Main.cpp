@@ -26,7 +26,7 @@
 #define Q_KEY 0x51
 #define PI 3.14159265
 
-void getPlayerHealth(HANDLE hProcHandle);
+int getPlayerHealth(HANDLE hProcHandle, int player);
 void WriteToMemory(HANDLE hProcHandle);
 DWORD FindDmaAddy(int PointerLevel, HANDLE hProcHandle, DWORD Offsets[], DWORD BaseAddress);
 DWORD GetCoordinate(HANDLE hProcHandle, int coordinate);
@@ -166,8 +166,6 @@ int main() {
                 std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl;
 				std::cout << "[F9] Blink Strike ->" << sBlinkStatus << "<-" << std::endl;
 				std::cout << "[F10] Quick aim by pressing Q ->" << sQuickAimStatus << "<-" << std::endl;
-				
-				getPlayerHealth(hProcHandle);
 		
                 UpdateOnNextRun = false;
                 timeSinceLastUpdate = clock();
@@ -639,7 +637,7 @@ DWORD getClosestPlayer(HANDLE hProcHandle) {
 		DWORD playerState;
 		ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
 		
-		if (playerState != 0) {
+		if (playerState != 0 && getPlayerHealth(hProcHandle,player) != -1) {
 			DWORD xcoord = GetCoordinate(hProcHandle,XCOORD);
 			DWORD ycoord = GetCoordinate(hProcHandle,YCOORD);
 			DWORD zcoord = GetCoordinate(hProcHandle,ZCOORD);
@@ -669,7 +667,7 @@ DWORD getClosestPlayer(HANDLE hProcHandle) {
 	return closestPlayer;
 }
 
-void getPlayerHealth(HANDLE hProcHandle) {	
+int getPlayerHealth(HANDLE hProcHandle,int player) {	
 	DWORD players = 0x004E4E08;
 	DWORD addressOfNumPlayers = 0x004E4E10;
 	DWORD numPlayers;
@@ -679,7 +677,7 @@ void getPlayerHealth(HANDLE hProcHandle) {
 	DWORD playersArray;
 	ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
 
-	for (int player = 0; player < numPlayers && numPlayers < 15 && numPlayers > 0; player++) {
+	//for (int player = 0; player < numPlayers && numPlayers < 15 && numPlayers > 0; player++) {
 		DWORD addressOfPlayerState = (playersArray+(0x4*player));
 		DWORD playerState;
 		ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
@@ -687,11 +685,14 @@ void getPlayerHealth(HANDLE hProcHandle) {
 		if (playerState != 0) {
 			DWORD addyOfHealth = playerState+0xF4;
 			ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfHealth), &health, 4, NULL);
-			if (health > 100) {
+			if (health > 100 || health <= 0) {
+				return -1;
 				//std::cout << "player " <<  player << " health: DEAD!"<< std::endl;
 			} else {
+				return health;
 				//std::cout << "player " <<  player << " health: " << health <<std::endl;
 			}
 		}
-	}
+	//}
+	return -1;
 }
