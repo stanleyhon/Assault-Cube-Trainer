@@ -588,16 +588,6 @@ void aimAtPlayer(HANDLE hProcHandle, int player, bool tele) {
 		float hisycoord = *(float *)&ycoord;
 		float hiszcoord = *(float *)&zcoord;
 
-		if(tele){
-			// TODO: Doesnt actualyl tele to them
-			// Could be syncro issue? extra cycles before mass teleporting?
-			// Could be angle problem?
-			//std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
-			WriteCoordinate(hProcHandle, XCOORD, hisxcoord);
-			WriteCoordinate(hProcHandle, YCOORD, hisycoord);
-            WriteCoordinate(hProcHandle, ZCOORD, hiszcoord);
-		}
-
 		// TODO - delete this shit
 		float xdisplace = hisxcoord-myxcoord;
 		float ydisplace = hisycoord-myycoord;
@@ -608,6 +598,16 @@ void aimAtPlayer(HANDLE hProcHandle, int player, bool tele) {
 		xdisplace = (xdisplace/looklen);
 		zdisplace = (zdisplace/looklen);
 		ydisplace = (ydisplace/looklen);
+
+		if(tele){
+			// TODO: Doesnt actualyl tele to them
+			// Could be syncro issue? extra cycles before mass teleporting?
+			// Could be angle problem?
+			//std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
+			WriteCoordinate(hProcHandle, XCOORD, hisxcoord - (xdisplace*5));
+			WriteCoordinate(hProcHandle, YCOORD, hisycoord - (ydisplace*5));
+            WriteCoordinate(hProcHandle, ZCOORD, hiszcoord - (zdisplace*5));
+		}
 
 		float temphangle = (180/PI) * atan2f(zdisplace,xdisplace) + 90;
 		float tempvangle = (180/PI) * asin(ydisplace);
