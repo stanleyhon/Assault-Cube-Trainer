@@ -87,6 +87,7 @@ float vangle;
 
 // Blink vars
 bool ableToBlink;
+bool ableToQuickAim;
 bool m1Pressed;
 
 int main() {
@@ -104,11 +105,13 @@ int main() {
     std::string sTeleportStatus;
     std::string iStatus;
 	std::string sBlinkStatus;
+	std::string sQuickAimStatus;
     sAmmoStatus = "OFF";
     sHealthStatus = "OFF";
     sTeleportStatus = "OFF";
     iStatus = "OFF";
 	sBlinkStatus = "OFF";
+	sQuickAimStatus = "OFF";
     OnePressTMR = clock();
     while(!GetAsyncKeyState(VK_INSERT)) { //Key is not = 'INSERT'
         // Does a series of checks every x ms and
@@ -119,7 +122,7 @@ int main() {
         // we make options available again
 
         if(clock() - GameAvailTMR > 1000) {
-			getClosestPlayer(hProcHandle);
+			//getClosestPlayer(hProcHandle);
             GameAvailTMR = clock();
             // Declare game unavailable by default
             // if it is available then it will change immediately
@@ -162,6 +165,7 @@ int main() {
                 std::cout << "[INSERT] Exit" << std::endl;
                 std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl;
 				std::cout << "[F9] Blink Strike ->" << sBlinkStatus << "<-" << std::endl;
+				std::cout << "[F10] Quick aim by pressing Q ->" << sQuickAimStatus << "<-" << std::endl;
 				
 				getPlayerHealth(hProcHandle);
 		
@@ -228,6 +232,15 @@ int main() {
                     } else {
                         sBlinkStatus = "OFF";
                     }
+				}else if (GetAsyncKeyState(VK_F10)) {
+					OnePressTMR = clock();
+                    UpdateOnNextRun = true;
+                    ableToQuickAim = !ableToQuickAim;
+                    if (ableToQuickAim) {
+                        sQuickAimStatus = "ON";
+                    } else {
+                        sQuickAimStatus = "OFF";
+                    }
 				}
                 
                 if (TeleportStatus) {
@@ -269,7 +282,6 @@ int main() {
                     lPressed=false;
                     uPressed=false;
                     oPressed=false;
-					qPressed=false;
                     if (GetAsyncKeyState(I_KEY)) {
                         iPressed=true;
                     }
@@ -287,9 +299,6 @@ int main() {
                     }
                     if (GetAsyncKeyState(O_KEY)) {
                         oPressed=true;
-                    }
-					if (GetAsyncKeyState(Q_KEY)) {
-                        qPressed=true;
                     }
 
 					float scale = 0.001;
@@ -399,6 +408,13 @@ int main() {
                         // float newCoordinate3 = addToCoordinate(GetCoordinate(hProcHandle, YCOORD), ydisplace);
                         // WriteCoordinate(hProcHandle, YCOORD, newCoordinate3);
                     }
+                }
+				
+				if (ableToQuickAim) {
+					qPressed=false;
+					if (GetAsyncKeyState(Q_KEY)) {
+                        qPressed=true;
+                    }
 					if (qPressed) {
 						// Aimbot time
 						int closestPlayer = getClosestPlayer(hProcHandle);
@@ -409,7 +425,8 @@ int main() {
 							//std::cout << "Couldnt find a close player. Map must be empty" << std::endl;
 						}
 					}
-                }
+				}
+
 				if(ableToBlink){
 					UpdateOnNextRun = true;
 
