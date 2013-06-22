@@ -33,6 +33,7 @@ void WriteCoordinates(HANDLE hProcHandle, int locationNumber);
 void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite);
 float addToCoordinate(DWORD coordinate, float valueToAdd);
 DWORD GetAngle(HANDLE hProcHandle, int direction);
+void toggleFastReload(HANDLE hProcHandle, bool isOn);
 
 //CREATES the string used to determine the name of our target window e.g. Calculator
 std::string GameName = "AssaultCube";
@@ -78,6 +79,7 @@ DWORD *positions[] = {location1,location2};
 DWORD AngleOffsets[] = {0x40,0x44}; // 1 level pointer
 float hangle;
 float vangle;
+bool automaticStatus = false;
 
 int main() {
 
@@ -97,6 +99,8 @@ int main() {
     sHealthStatus = "OFF";
     sTeleportStatus = "OFF";
     iStatus = "OFF";
+	std::string isAutomaticOn;
+	isAutomaticOn = "OFF";
     OnePressTMR = clock();
     while(!GetAsyncKeyState(VK_INSERT)) { //Key is not = 'INSERT'
         // Does a series of checks every x ms and
@@ -105,6 +109,9 @@ int main() {
         // otherwise we report where it went wrong
         // e.g. if game is closed we make things unavailable, or if its opened
         // we make options available again
+		if (automaticStatus) {
+			toggleFastReload(hProcHandle,true);
+		} 
 
         if(clock() - GameAvailTMR > 1000) {
             GameAvailTMR = clock();
@@ -146,8 +153,9 @@ int main() {
                 std::cout << "[F1] Unlimited ammo ->"<< sAmmoStatus <<"<-" << std::endl<< std::endl;
                 std::cout << "[F2] Unlimited Health and armor ->" << sHealthStatus << "<-" << std::endl<< std::endl;
                 std::cout << "[F3] Save Location ->" << sTeleportStatus << "<-" << std::endl<< std::endl;
-                std::cout << "[INSERT] Exit" << std::endl;
-                std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl;
+                std::cout << "[INSERT] Exit" << std::endl<<std::endl;
+                std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl<<std::endl;
+				std::cout << "[F9] Fast reload/all guns automatic ->" << isAutomaticOn << "<-" << std::endl<<std::endl;
 		getPlayerHealth(hProcHandle);
 		
                 UpdateOnNextRun = false;
@@ -204,7 +212,16 @@ int main() {
                     } else {
                         iStatus = "OFF";
                     }
-                }
+                } else if (GetAsyncKeyState(VK_F9)) {
+					OnePressTMR = clock();
+					UpdateOnNextRun = true;
+					automaticStatus = !automaticStatus;
+					if (automaticStatus) {
+						isAutomaticOn = "ON";
+					} else {
+						isAutomaticOn = "OFF";
+					}
+				}
                 
                 if (TeleportStatus) {
                     if (GetAsyncKeyState(SAVE_LOCATION_1)) {
@@ -497,4 +514,33 @@ void getPlayerHealth(HANDLE hProcHandle) {
 			}
 		}
 	}
+}
+
+void toggleFastReload(HANDLE hProcHandle, bool isOn) {
+	DWORD addyOfWeaponStruct;
+	DWORD weaponStruct;
+	DWORD addyOfGun;
+	DWORD gun;
+	DWORD reloadWaitTime;
+	DWORD addy;
+	DWORD addyOfPlayer = 0x004DF73C;
+	DWORD player;
+
+	int speed;
+	if (isOn) {
+		speed = 50;
+		
+	} else {
+		speed = 2000;
+	}
+
+	ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfPlayer), &player, 4, NULL);
+		
+	ReadProcessMemory (hProcHandle, (LPCVOID)(player+0x378), &addyOfWeaponStruct, 4, NULL);
+		
+	ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfWeaponStruct+0x14), &addyOfGun, 4, NULL);
+		
+	ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfGun+0x28), &reloadWaitTime, 4, NULL);
+		
+	WriteProcessMemory (hProcHandle, (BYTE*)(addyOfGun+0x28), &speed, sizeof(speed), NULL);
 }
