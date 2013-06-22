@@ -528,7 +528,7 @@ void toggleFastReload(HANDLE hProcHandle, bool isOn) {
 
 	int speed;
 	if (isOn) {
-		speed = 50;
+		speed = 0;
 		
 	} else {
 		speed = 2000;
