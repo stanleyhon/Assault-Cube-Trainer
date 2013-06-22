@@ -33,7 +33,7 @@ void WriteCoordinates(HANDLE hProcHandle, int locationNumber);
 void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite);
 float addToCoordinate(DWORD coordinate, float valueToAdd);
 DWORD GetAngle(HANDLE hProcHandle, int direction);
-void toggleFastReload(HANDLE hProcHandle, bool isOn);
+void toggleFastReload(HANDLE hProcHandle);
 
 //CREATES the string used to determine the name of our target window e.g. Calculator
 std::string GameName = "AssaultCube";
@@ -110,7 +110,7 @@ int main() {
         // e.g. if game is closed we make things unavailable, or if its opened
         // we make options available again
 		if (automaticStatus) {
-			toggleFastReload(hProcHandle,true);
+			toggleFastReload(hProcHandle);
 		} 
 
         if(clock() - GameAvailTMR > 1000) {
@@ -516,7 +516,7 @@ void getPlayerHealth(HANDLE hProcHandle) {
 	}
 }
 
-void toggleFastReload(HANDLE hProcHandle, bool isOn) {
+void toggleFastReload(HANDLE hProcHandle) {
 	DWORD addyOfWeaponStruct;
 	DWORD weaponStruct;
 	DWORD addyOfGun;
@@ -526,13 +526,7 @@ void toggleFastReload(HANDLE hProcHandle, bool isOn) {
 	DWORD addyOfPlayer = 0x004DF73C;
 	DWORD player;
 
-	int speed;
-	if (isOn) {
-		speed = 0;
-		
-	} else {
-		speed = 2000;
-	}
+	int speed = 0;
 
 	ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfPlayer), &player, 4, NULL);
 		
