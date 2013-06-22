@@ -163,8 +163,8 @@ int main() {
 					std::cout << "[F3] Save Location ->" << sTeleportStatus << "<-" << std::endl<< std::endl;
 					std::cout << "[INSERT] Exit" << std::endl<<std::endl;
 					std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl<<std::endl;
-					std::cout << "[F9] Fast reload/all guns automatic ->" << isAutomaticOn << "<-" << std::endl<<std::endl;
-					std::cout << "[F10] ESP" <<std::endl<<std::endl;
+					std::cout << "[F11] Fast reload/all guns automatic ->" << isAutomaticOn << "<-" << std::endl<<std::endl;
+					std::cout << "[F12] ESP" <<std::endl<<std::endl;
 				}
 		
 		
@@ -222,7 +222,7 @@ int main() {
                     } else {
                         iStatus = "OFF";
                     }
-                } else if (GetAsyncKeyState(VK_F9)) {
+                } else if (GetAsyncKeyState(VK_F11)) {
 					OnePressTMR = clock();
 					UpdateOnNextRun = true;
 					automaticStatus = !automaticStatus;
@@ -231,7 +231,7 @@ int main() {
 					} else {
 						isAutomaticOn = "OFF";
 					}
-				} else if (GetAsyncKeyState(VK_F10)) {
+				} else if (GetAsyncKeyState(VK_F12)) {
 					OnePressTMR = clock();
 					UpdateOnNextRun = true;
 					espActive = !espActive;
