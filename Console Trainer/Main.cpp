@@ -22,26 +22,32 @@
 #define L_KEY 0x4C
 #define U_KEY 0x55
 #define O_KEY 0x4F
+#define M1_KEY 0x01
+#define Q_KEY 0x51
 #define PI 3.14159265
 
-void getPlayerHealth(HANDLE hProcHandle);
+int getPlayerHealth(HANDLE hProcHandle, int player);
 void WriteToMemory(HANDLE hProcHandle);
 DWORD FindDmaAddy(int PointerLevel, HANDLE hProcHandle, DWORD Offsets[], DWORD BaseAddress);
 DWORD GetCoordinate(HANDLE hProcHandle, int coordinate);
+DWORD GetPlayerCoordinate(HANDLE hProcHandle, DWORD playeraddress, int coordinate);
 DWORD GetHealth(HANDLE hProcHandle);
 void WriteCoordinates(HANDLE hProcHandle, int locationNumber);
 void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite);
 float addToCoordinate(DWORD coordinate, float valueToAdd);
 DWORD GetAngle(HANDLE hProcHandle, int direction);
-void toggleFastReload(HANDLE hProcHandle);
-void displayESP(HANDLE hProcHandle);
-//CREATES the string used to determine the name of our target window e.g. Calculator
+DWORD getClosestPlayer(HANDLE hProcHandle);
+void SetAngle(HANDLE hProcHandle, int direction, float angle);
+void aimAtPlayer(HANDLE hProchHandle, int player, bool tele);
+//CREATES the string used to determine the name of our target window
 std::string GameName = "AssaultCube";
 LPCSTR LGameWindow = "AssaultCube"; //<- MAKE SURE it matches the window name
 std::string GameStatus;
 //FUNCTION PROTOTYPES
 bool IsGameAvail;
 bool UpdateOnNextRun; //used to update the display menu only when something changed
+void toggleFastReload(HANDLE hProcHandle);
+void displayESP(HANDLE hProcHandle);
 
 //-------AMMO VARS--------
 //number we are going to overwrite the current ammo with in bytes
@@ -57,16 +63,17 @@ DWORD HealthBaseAddress = {0x004DF73C};
 DWORD HealthOffsets[] = {0xF4}; // 1 level pointer
 
 //-------Location VARS--------
-bool TeleportStatus; // used to DEFine whether teleport is allowed
+bool TeleportStatus = true; // used to DEFine whether teleport is allowed
 bool ableToMove; // used to DEFine whether you can move using i, j, k and l
 DWORD LocationBaseAddress = {0x004DF73C};
 DWORD LocationOffsets[] = {0x34,0x3C,0x38}; // 1 level pointer
 bool iPressed;
 bool jPressed;
 bool kPressed;
-bool lPressed;
+bool lPressed;	
 bool uPressed;
 bool oPressed;
+bool qPressed;
 DWORD TeleportLocationX1;
 DWORD TeleportLocationY1;
 DWORD TeleportLocationZ1;
@@ -79,6 +86,13 @@ DWORD *positions[] = {location1,location2};
 DWORD AngleOffsets[] = {0x40,0x44}; // 1 level pointer
 float hangle;
 float vangle;
+
+// Blink vars
+bool ableToBlink;
+bool ableToQuickAim = true;
+bool m1Pressed;
+
+
 bool automaticStatus = false;
 bool espActive = false;
 
@@ -96,12 +110,16 @@ int main() {
     std::string sHealthStatus;
     std::string sTeleportStatus;
     std::string iStatus;
+	std::string sBlinkStatus;
+	std::string sQuickAimStatus;
+    std::string isAutomaticOn;
+	isAutomaticOn = "OFF";
     sAmmoStatus = "OFF";
     sHealthStatus = "OFF";
     sTeleportStatus = "OFF";
     iStatus = "OFF";
-	std::string isAutomaticOn;
-	isAutomaticOn = "OFF";
+	sBlinkStatus = "OFF";
+	sQuickAimStatus = "OFF";
     OnePressTMR = clock();
     while(!GetAsyncKeyState(VK_INSERT)) { //Key is not = 'INSERT'
         // Does a series of checks every x ms and
@@ -110,11 +128,11 @@ int main() {
         // otherwise we report where it went wrong
         // e.g. if game is closed we make things unavailable, or if its opened
         // we make options available again
-		if (automaticStatus) {
+        if (automaticStatus) {
 			toggleFastReload(hProcHandle);
 		} 
-
         if(clock() - GameAvailTMR > 1000) {
+			//getClosestPlayer(hProcHandle);
             GameAvailTMR = clock();
             // Declare game unavailable by default
             // if it is available then it will change immediately
@@ -147,27 +165,28 @@ int main() {
             {
 				
                 system("cls");
-				if (espActive) {
+                if (espActive) {
 					std::cout << "----------------------------------------------------" << std::endl;
 					std::cout << "        ESP" << std::endl;
 					std::cout << "----------------------------------------------------" << std::endl << std::endl;
-					std::cout << "        Press [F10] to go back to main menu" << std::endl<<std::endl;
+					std::cout << "        Press [F12] to go back to main menu" << std::endl<<std::endl;
 					displayESP(hProcHandle);
 				} else {
-					std::cout << "----------------------------------------------------" << std::endl;
-					std::cout << "        AssaultCube memory hacker" << std::endl;
-					std::cout << "----------------------------------------------------" << std::endl << std::endl;
-					std::cout << "GAME STATUS:"<< GameStatus  <<"   " << std::endl << std::endl;
-					std::cout << "[F1] Unlimited ammo ->"<< sAmmoStatus <<"<-" << std::endl<< std::endl;
-					std::cout << "[F2] Unlimited Health and armor ->" << sHealthStatus << "<-" << std::endl<< std::endl;
-					std::cout << "[F3] Save Location ->" << sTeleportStatus << "<-" << std::endl<< std::endl;
-					std::cout << "[INSERT] Exit" << std::endl<<std::endl;
-					std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl<<std::endl;
-					std::cout << "[F11] Fast reload/all guns automatic ->" << isAutomaticOn << "<-" << std::endl<<std::endl;
-					std::cout << "[F12] ESP" <<std::endl<<std::endl;
-				}
-		
-		
+                    std::cout << "----------------------------------------------------" << std::endl;
+                    std::cout << "        AssaultCube memory hacker" << std::endl;
+                    std::cout << "----------------------------------------------------" << std::endl << std::endl;
+                    std::cout << "GAME STATUS:"<< GameStatus  <<"   " << std::endl << std::endl;
+                    std::cout << "[F4] Save Location 1" << std::endl;
+                    std::cout << "[F5] Save Location 2" << std::endl;
+                    std::cout << "[F6] Load Location 1" << std::endl;
+                    std::cout << "[F7] Load Location 2" << std::endl;
+                    std::cout << "[INSERT] Exit" << std::endl;
+                    std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl;
+				    std::cout << "[F9] Blink Strike ->" << sBlinkStatus << "<-" << std::endl;
+				    std::cout << "[Q] to auto aim->" << std::endl;
+				    std::cout << "[F12] ESP" <<std::endl;
+                    std::cout << "[INSERT] Exit" << std::endl;
+                }
                 UpdateOnNextRun = false;
                 timeSinceLastUpdate = clock();
             }
@@ -182,30 +201,9 @@ int main() {
         if (clock() - OnePressTMR > 400) {
             if (IsGameAvail) {
                 // DETECTS WHICH KEYS HAVE BEEN PRESSED IN order to turn cheats on and off
-                if (GetAsyncKeyState (VK_F1)) {
+                if (GetAsyncKeyState(VK_F3)) {
                     OnePressTMR = clock();
-                    // Reverts the ammo status e.g. from true to false and vice versa
-                    AmmoStatus = !AmmoStatus;
-                    UpdateOnNextRun = true;
-                    // changes the text to update on next display
-                    if (AmmoStatus) {
-                        sAmmoStatus = "ON";
-                    } else { 
-                        sAmmoStatus = "OFF";
-                    }
-                } else if (GetAsyncKeyState(VK_F2)) {
-                    OnePressTMR = clock();
-                    HealthStatus = !HealthStatus;
-                    UpdateOnNextRun = true;
-                    // changes the text to update on next display
-                    if (HealthStatus) {
-                        sHealthStatus = "ON";
-                    } else { 
-                        sHealthStatus = "OFF";
-                    }
-                } else if (GetAsyncKeyState(VK_F3)) {
-                    OnePressTMR = clock();
-                    TeleportStatus = !TeleportStatus;
+                    
                     UpdateOnNextRun = true;
                     // changes the text to update on next display
                     if (TeleportStatus) {
@@ -222,20 +220,21 @@ int main() {
                     } else {
                         iStatus = "OFF";
                     }
-                } else if (GetAsyncKeyState(VK_F11)) {
+                } else if (GetAsyncKeyState(VK_F9)) {
 					OnePressTMR = clock();
-					UpdateOnNextRun = true;
-					automaticStatus = !automaticStatus;
-					if (automaticStatus) {
-						isAutomaticOn = "ON";
-					} else {
-						isAutomaticOn = "OFF";
-					}
+                    UpdateOnNextRun = true;
+                    ableToBlink = !ableToBlink;
+                    if (ableToBlink) {
+                        sBlinkStatus = "ON";
+                    } else {
+                        sBlinkStatus = "OFF";
+                    }
 				} else if (GetAsyncKeyState(VK_F12)) {
 					OnePressTMR = clock();
 					UpdateOnNextRun = true;
 					espActive = !espActive;
 				}
+                
                 if (TeleportStatus) {
                     if (GetAsyncKeyState(SAVE_LOCATION_1)) {
 
@@ -402,6 +401,43 @@ int main() {
                         // WriteCoordinate(hProcHandle, YCOORD, newCoordinate3);
                     }
                 }
+				
+				if (ableToQuickAim) {
+					qPressed=false;
+					if (GetAsyncKeyState(Q_KEY)) {
+                        qPressed=true;
+                    }
+					if (qPressed) {
+						// Aimbot time
+						int closestPlayer = getClosestPlayer(hProcHandle);
+						if (closestPlayer != -1) {
+							//std::cout << "Going to aim at player " << closestPlayer << std::endl;
+							aimAtPlayer(hProcHandle,closestPlayer,false);
+						} else {
+							//std::cout << "Couldnt find a close player. Map must be empty" << std::endl;
+						}
+					}
+				}
+
+				if(ableToBlink){
+					UpdateOnNextRun = true;
+
+                    m1Pressed=false;
+					if (GetAsyncKeyState(M1_KEY)) {
+                        m1Pressed=true;
+                    }
+
+					if(m1Pressed){
+						int closestPlayer = getClosestPlayer(hProcHandle);
+						if (closestPlayer != -1) {
+							//std::cout << "Going to aim at player " << closestPlayer << std::endl;
+							aimAtPlayer(hProcHandle,closestPlayer,true);
+						} else {
+							//std::cout << "Couldnt find a close player. Map must be empty" << std::endl;
+						}
+					}
+				}
+
             }
         }
     }
@@ -460,6 +496,15 @@ DWORD GetCoordinate(HANDLE hProcHandle, int coordinate) {
     return coordinateValue;
 }
 
+DWORD GetPlayerCoordinate(HANDLE hProcHandle, DWORD playeraddress, int coordinate) {
+    //std::cout << "ran getoordinate with" << coordinate << std::endl;
+    //std::cout << "location offset "<<coordinate<<" is "<<LocationOffsets[coordinate]<<std::endl;
+    DWORD coordinateLocation = playeraddress + LocationOffsets[coordinate];
+	DWORD coordinateValue;
+	ReadProcessMemory (hProcHandle, (LPCVOID)coordinateLocation, &coordinateValue, 4, NULL);
+    return coordinateValue;
+}
+
 DWORD GetAngle(HANDLE hProcHandle, int direction) {
     //std::cout << "ran getoordinate with" << coordinate << std::endl;
     DWORD AngleOffset[] = {AngleOffsets[direction]};
@@ -468,6 +513,16 @@ DWORD GetAngle(HANDLE hProcHandle, int direction) {
     DWORD angleValue;
     ReadProcessMemory (hProcHandle, (LPCVOID)angleLocation, &angleValue, 4, NULL);
     return angleValue;
+}
+
+void SetAngle(HANDLE hProcHandle, int direction, float angle) {
+    //std::cout << "ran getoordinate with" << coordinate << std::endl;
+    DWORD AngleOffset[] = {AngleOffsets[direction]};
+    //std::cout << "location offset "<<coordinate<<" is "<<LocationOffsets[coordinate]<<std::endl;
+    DWORD angleLocation = (FindDmaAddy(1, hProcHandle, AngleOffset, LocationBaseAddress));
+    
+	// Write the angle to memory
+	WriteProcessMemory (hProcHandle, (BYTE*)angleLocation, &angle, sizeof(angle), NULL);
 }
 
 void WriteCoordinates(HANDLE hProcHandle, int locationNumber) {
@@ -490,7 +545,6 @@ void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite) {
     DWORD address = (FindDmaAddy(1, hProcHandle, Location, LocationBaseAddress));
 	//std::cout << "ACTUAL WRITING " << valueToWrite << std::endl;
     WriteProcessMemory (hProcHandle, (BYTE*)address, &valueToWrite, sizeof(valueToWrite), NULL);
-
 }
 
 float addToCoordinate(DWORD coordinate, float valueToAdd) {
@@ -501,8 +555,66 @@ float addToCoordinate(DWORD coordinate, float valueToAdd) {
     return newCoordinateF;
 }
 
-void getPlayerHealth(HANDLE hProcHandle) {
+void aimAtPlayer(HANDLE hProcHandle, int player, bool tele) {
+	DWORD players = 0x004E4E08;
+	DWORD playersArray;
+	ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
 	
+	DWORD addressOfPlayerState = (playersArray+(0x4*player));
+	DWORD playerState;
+	ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
+	
+	// If the player actually exists
+	if (playerState != 0) {
+		DWORD xcoord = GetCoordinate(hProcHandle,XCOORD);
+		DWORD ycoord = GetCoordinate(hProcHandle,YCOORD);
+		DWORD zcoord = GetCoordinate(hProcHandle,ZCOORD);
+		float myxcoord = *(float *)&xcoord;
+		float myycoord = *(float *)&ycoord;
+		float myzcoord = *(float *)&zcoord;
+
+		xcoord = GetPlayerCoordinate(hProcHandle,playerState,XCOORD);
+		ycoord = GetPlayerCoordinate(hProcHandle,playerState,YCOORD);
+		zcoord = GetPlayerCoordinate(hProcHandle,playerState,ZCOORD);
+		float hisxcoord = *(float *)&xcoord;
+		float hisycoord = *(float *)&ycoord;
+		float hiszcoord = *(float *)&zcoord;
+
+		// TODO - delete this shit
+		float xdisplace = hisxcoord-myxcoord;
+		float ydisplace = hisycoord-myycoord;
+		float zdisplace = hiszcoord-myzcoord;
+
+		float looklen = sqrtf(xdisplace*xdisplace + ydisplace*ydisplace + zdisplace*zdisplace);
+		
+		xdisplace = (xdisplace/looklen);
+		zdisplace = (zdisplace/looklen);
+		ydisplace = (ydisplace/looklen);
+
+		if(tele){
+			// TODO: Doesnt actualyl tele to them
+			// Could be syncro issue? extra cycles before mass teleporting?
+			// Could be angle problem?
+			//std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
+			WriteCoordinate(hProcHandle, XCOORD, hisxcoord - (xdisplace*5));
+			WriteCoordinate(hProcHandle, YCOORD, hisycoord - (ydisplace*5));
+            WriteCoordinate(hProcHandle, ZCOORD, hiszcoord - (zdisplace*5));
+		}
+
+		float temphangle = (180/PI) * atan2f(zdisplace,xdisplace) + 90;
+		float tempvangle = (180/PI) * asin(ydisplace);
+		//std::cout << "Me " << " myxcoord " << myxcoord << " myycoord " << myycoord << " myzcoord " << myzcoord << std::endl;
+		// std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
+		//std::cout << "Angle should be set to " <<  temphangle << " and " << tempvangle << std::endl;
+
+		SetAngle(hProcHandle,0,temphangle);
+		SetAngle(hProcHandle,1,tempvangle);
+
+	}
+}
+
+// Returns the closest players number
+DWORD getClosestPlayer(HANDLE hProcHandle) {
 	DWORD players = 0x004E4E08;
 	DWORD addressOfNumPlayers = 0x004E4E10;
 	DWORD numPlayers;
@@ -512,7 +624,54 @@ void getPlayerHealth(HANDLE hProcHandle) {
 	DWORD playersArray;
 	ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
 
-	for (int player = 0; player < numPlayers; player++) {
+	int closestPlayer = -1;
+	DWORD closestDistance = 9999999;
+	for (int player = 0; player < numPlayers && numPlayers < 15 && numPlayers > 0; player++) {
+		DWORD addressOfPlayerState = (playersArray+(0x4*player));
+		DWORD playerState;
+		ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
+		
+		if (playerState != 0 && getPlayerHealth(hProcHandle,player) != -1) {
+			DWORD xcoord = GetCoordinate(hProcHandle,XCOORD);
+			DWORD ycoord = GetCoordinate(hProcHandle,YCOORD);
+			DWORD zcoord = GetCoordinate(hProcHandle,ZCOORD);
+			float myxcoord = *(float *)&xcoord;
+			float myycoord = *(float *)&ycoord;
+			float myzcoord = *(float *)&zcoord;
+
+			xcoord = GetPlayerCoordinate(hProcHandle,playerState,XCOORD);
+			ycoord = GetPlayerCoordinate(hProcHandle,playerState,YCOORD);
+			zcoord = GetPlayerCoordinate(hProcHandle,playerState,ZCOORD);
+			float hisxcoord = *(float *)&xcoord;
+			float hisycoord = *(float *)&ycoord;
+			float hiszcoord = *(float *)&zcoord;
+
+			float distancebetweenus = sqrtf((hisxcoord-myxcoord)*(hisxcoord-myxcoord) + (hisycoord-myycoord)*(hisycoord-myycoord) + (hiszcoord-myzcoord)*(hiszcoord-myzcoord));
+			//std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
+			//std::cout << "player " <<  player << "  distance = " << distancebetweenus << std::endl;
+			if (distancebetweenus < closestDistance) {
+				closestDistance = distancebetweenus;
+				closestPlayer = player;
+			}
+		} else {
+			//std::cout << "player " << player << " is not available" << std::endl;
+		}
+	}
+
+	return closestPlayer;
+}
+
+int getPlayerHealth(HANDLE hProcHandle,int player) {	
+	DWORD players = 0x004E4E08;
+	DWORD addressOfNumPlayers = 0x004E4E10;
+	DWORD numPlayers;
+	ReadProcessMemory (hProcHandle, (LPCVOID)addressOfNumPlayers, &numPlayers, 4, NULL);
+	DWORD health = {0};
+	
+	DWORD playersArray;
+	ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
+
+	//for (int player = 0; player < numPlayers && numPlayers < 15 && numPlayers > 0; player++) {
 		DWORD addressOfPlayerState = (playersArray+(0x4*player));
 		DWORD playerState;
 		ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
@@ -520,14 +679,16 @@ void getPlayerHealth(HANDLE hProcHandle) {
 		if (playerState != 0) {
 			DWORD addyOfHealth = playerState+0xF4;
 			ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfHealth), &health, 4, NULL);
-			
-			if (health > 100) {
-				std::cout << "player " <<  player << " health: DEAD!"<< std::endl;
+			if (health > 100 || health <= 0) {
+				return -1;
+				//std::cout << "player " <<  player << " health: DEAD!"<< std::endl;
 			} else {
-				std::cout << "player " <<  player << " health: " << health <<std::endl;
+				return health;
+				//std::cout << "player " <<  player << " health: " << health <<std::endl;
 			}
 		}
-	}
+	//}
+	return -1;
 }
 
 void toggleFastReload(HANDLE hProcHandle) {
@@ -540,7 +701,7 @@ void toggleFastReload(HANDLE hProcHandle) {
 	DWORD addyOfPlayer = 0x004DF73C;
 	DWORD player;
 
-	int speed = 0;
+	int speed = 50  ;
 
 	ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfPlayer), &player, 4, NULL);
 		
@@ -554,5 +715,16 @@ void toggleFastReload(HANDLE hProcHandle) {
 }
 
 void displayESP(HANDLE hProcHandle) {
-	getPlayerHealth(hProcHandle);
+	DWORD numPlayers;
+    DWORD addressOfNumPlayers = 0x004E4E10;
+	ReadProcessMemory (hProcHandle, (LPCVOID)addressOfNumPlayers, &numPlayers, 4, NULL);
+    for (int player = 0; player < numPlayers; player++) {
+        int health = getPlayerHealth(hProcHandle,player);
+        if (health == -1) {
+            std::cout << "player " <<  player << " health: DEAD!"<< std::endl;
+        } else {
+            std::cout << "player " <<  player << " health: " << health <<std::endl;
+        }
+    }
+    
 }
