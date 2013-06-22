@@ -34,7 +34,7 @@ void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite);
 float addToCoordinate(DWORD coordinate, float valueToAdd);
 DWORD GetAngle(HANDLE hProcHandle, int direction);
 void toggleFastReload(HANDLE hProcHandle);
-
+void displayESP(HANDLE hProcHandle);
 //CREATES the string used to determine the name of our target window e.g. Calculator
 std::string GameName = "AssaultCube";
 LPCSTR LGameWindow = "AssaultCube"; //<- MAKE SURE it matches the window name
@@ -80,6 +80,7 @@ DWORD AngleOffsets[] = {0x40,0x44}; // 1 level pointer
 float hangle;
 float vangle;
 bool automaticStatus = false;
+bool espActive = false;
 
 int main() {
 
@@ -142,21 +143,30 @@ int main() {
 
             // if UpdateNextRun is called or a number of seconds without updates have gone by an auto update is done
             // to make sure game is available etc.
-            if (UpdateOnNextRun || clock() - timeSinceLastUpdate > 5000)
+            if (UpdateOnNextRun || clock() - timeSinceLastUpdate > 50)
             {
 				
                 system("cls");
-                std::cout << "----------------------------------------------------" << std::endl;
-                std::cout << "        AssaultCube memory hacker" << std::endl;
-                std::cout << "----------------------------------------------------" << std::endl << std::endl;
-                std::cout << "GAME STATUS:"<< GameStatus  <<"   " << std::endl << std::endl;
-                std::cout << "[F1] Unlimited ammo ->"<< sAmmoStatus <<"<-" << std::endl<< std::endl;
-                std::cout << "[F2] Unlimited Health and armor ->" << sHealthStatus << "<-" << std::endl<< std::endl;
-                std::cout << "[F3] Save Location ->" << sTeleportStatus << "<-" << std::endl<< std::endl;
-                std::cout << "[INSERT] Exit" << std::endl<<std::endl;
-                std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl<<std::endl;
-				std::cout << "[F9] Fast reload/all guns automatic ->" << isAutomaticOn << "<-" << std::endl<<std::endl;
-		getPlayerHealth(hProcHandle);
+				if (espActive) {
+					std::cout << "----------------------------------------------------" << std::endl;
+					std::cout << "        ESP" << std::endl;
+					std::cout << "----------------------------------------------------" << std::endl << std::endl;
+					std::cout << "        Press [F10] to go back to main menu" << std::endl<<std::endl;
+					displayESP(hProcHandle);
+				} else {
+					std::cout << "----------------------------------------------------" << std::endl;
+					std::cout << "        AssaultCube memory hacker" << std::endl;
+					std::cout << "----------------------------------------------------" << std::endl << std::endl;
+					std::cout << "GAME STATUS:"<< GameStatus  <<"   " << std::endl << std::endl;
+					std::cout << "[F1] Unlimited ammo ->"<< sAmmoStatus <<"<-" << std::endl<< std::endl;
+					std::cout << "[F2] Unlimited Health and armor ->" << sHealthStatus << "<-" << std::endl<< std::endl;
+					std::cout << "[F3] Save Location ->" << sTeleportStatus << "<-" << std::endl<< std::endl;
+					std::cout << "[INSERT] Exit" << std::endl<<std::endl;
+					std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl<<std::endl;
+					std::cout << "[F9] Fast reload/all guns automatic ->" << isAutomaticOn << "<-" << std::endl<<std::endl;
+					std::cout << "[F10] ESP" <<std::endl<<std::endl;
+				}
+		
 		
                 UpdateOnNextRun = false;
                 timeSinceLastUpdate = clock();
@@ -221,8 +231,11 @@ int main() {
 					} else {
 						isAutomaticOn = "OFF";
 					}
+				} else if (GetAsyncKeyState(VK_F10)) {
+					OnePressTMR = clock();
+					UpdateOnNextRun = true;
+					espActive = !espActive;
 				}
-                
                 if (TeleportStatus) {
                     if (GetAsyncKeyState(SAVE_LOCATION_1)) {
 
@@ -507,6 +520,7 @@ void getPlayerHealth(HANDLE hProcHandle) {
 		if (playerState != 0) {
 			DWORD addyOfHealth = playerState+0xF4;
 			ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfHealth), &health, 4, NULL);
+			
 			if (health > 100) {
 				std::cout << "player " <<  player << " health: DEAD!"<< std::endl;
 			} else {
@@ -537,4 +551,8 @@ void toggleFastReload(HANDLE hProcHandle) {
 	ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfGun+0x28), &reloadWaitTime, 4, NULL);
 		
 	WriteProcessMemory (hProcHandle, (BYTE*)(addyOfGun+0x28), &speed, sizeof(speed), NULL);
+}
+
+void displayESP(HANDLE hProcHandle) {
+	getPlayerHealth(hProcHandle);
 }
