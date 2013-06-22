@@ -48,6 +48,7 @@ bool IsGameAvail;
 bool UpdateOnNextRun; //used to update the display menu only when something changed
 void toggleFastReload(HANDLE hProcHandle);
 void displayESP(HANDLE hProcHandle);
+int getPlayerArmour(HANDLE hProcHandle,int player);
 
 //-------AMMO VARS--------
 //number we are going to overwrite the current ammo with in bytes
@@ -180,10 +181,9 @@ int main() {
                     std::cout << "[F5] Save Location 2" << std::endl;
                     std::cout << "[F6] Load Location 1" << std::endl;
                     std::cout << "[F7] Load Location 2" << std::endl;
-                    std::cout << "[INSERT] Exit" << std::endl;
                     std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl;
 				    std::cout << "[F9] Blink Strike ->" << sBlinkStatus << "<-" << std::endl;
-				    std::cout << "[Q] to auto aim->" << std::endl;
+				    std::cout << "Hold [Q] to lock on to nearest enemy" << std::endl;
 				    std::cout << "[F12] ESP" <<std::endl;
                     std::cout << "[INSERT] Exit" << std::endl;
                 }
@@ -691,6 +691,31 @@ int getPlayerHealth(HANDLE hProcHandle,int player) {
 	return -1;
 }
 
+int getPlayerArmour(HANDLE hProcHandle,int player) {	
+	DWORD players = 0x004E4E08;
+	DWORD addressOfNumPlayers = 0x004E4E10;
+	DWORD numPlayers;
+	ReadProcessMemory (hProcHandle, (LPCVOID)addressOfNumPlayers, &numPlayers, 4, NULL);
+	DWORD armour = {0};
+	
+	DWORD playersArray;
+	ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
+
+	//for (int player = 0; player < numPlayers && numPlayers < 15 && numPlayers > 0; player++) {
+		DWORD addressOfPlayerState = (playersArray+(0x4*player));
+		DWORD playerState;
+		ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
+		
+		if (playerState != 0) {
+			DWORD addyOfArmour = playerState+0xF8;
+			ReadProcessMemory (hProcHandle, (LPCVOID)(addyOfArmour), &armour, 4, NULL);
+			return armour;
+			
+		}
+	//}
+	
+}
+
 void toggleFastReload(HANDLE hProcHandle) {
 	DWORD addyOfWeaponStruct;
 	DWORD weaponStruct;
@@ -720,10 +745,12 @@ void displayESP(HANDLE hProcHandle) {
 	ReadProcessMemory (hProcHandle, (LPCVOID)addressOfNumPlayers, &numPlayers, 4, NULL);
     for (int player = 0; player < numPlayers; player++) {
         int health = getPlayerHealth(hProcHandle,player);
+		int armour = getPlayerArmour(hProcHandle,player);
         if (health == -1) {
-            std::cout << "player " <<  player << " health: DEAD!"<< std::endl;
+            std::cout << "player " <<  player << " health: DEAD!" << std::endl;
         } else {
-            std::cout << "player " <<  player << " health: " << health <<std::endl;
+            std::cout << "player " <<  player << " health: " << health << " | ";
+			std::cout << "armour: " << armour << std::endl;
         }
     }
     
