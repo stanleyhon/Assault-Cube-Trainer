@@ -38,6 +38,7 @@ DWORD GetAngle(HANDLE hProcHandle, int direction);
 DWORD getClosestPlayer(HANDLE hProcHandle);
 void SetAngle(HANDLE hProcHandle, int direction, float angle);
 void aimAtPlayer(HANDLE hProchHandle, int player, bool tele);
+float getPlayerDistance(HANDLE hProcHandle, int playerNum);
 //CREATES the string used to determine the name of our target window
 std::string GameName = "AssaultCube";
 LPCSTR LGameWindow = "AssaultCube"; //<- MAKE SURE it matches the window name
@@ -155,8 +156,8 @@ int main() {
                     std::cout << "GAME STATUS:" << GameStatus  << "   " << std::endl << std::endl;
                     std::cout << "[F4] Save Location 1" << std::endl;
                     std::cout << "[F5] Save Location 2" << std::endl;
-                    std::cout << "[F6] Load Location 1" << std::endl;
-                    std::cout << "[F7] Load Location 2" << std::endl;
+                    std::cout << "[Shift+F4] Load Location 1" << std::endl;
+                    std::cout << "[Shift+F5] Load Location 2" << std::endl;
                     std::cout << "[F8] Move with I,J,K,L ->" << iStatus << "<-" << std::endl;
 				    std::cout << "[F9] Blink Strike ->" << sBlinkStatus << "<-" << std::endl;
 				    std::cout << "Hold [Q] to lock on to nearest enemy" << std::endl;
@@ -172,6 +173,7 @@ int main() {
         // Stops Keys from being spammed e.g. only allow them to be pressed every x milliseconds
         if (clock() - OnePressTMR > 400) {
             if (IsGameAvail) {
+                
                 // DETECTS WHICH KEYS HAVE BEEN PRESSED IN order to turn cheats on and off
                 if (GetAsyncKeyState(VK_F3)) {
                     OnePressTMR = clock();
@@ -208,37 +210,45 @@ int main() {
 				}
                 
                 if (TeleportStatus) {
-                    if (GetAsyncKeyState(SAVE_LOCATION_1)) {
+                    if (GetKeyState(VK_SHIFT)<0) {
+                        if (GetAsyncKeyState(SAVE_LOCATION_1)) {
+                        
+                            std::cout << "loaded loc 1" << std::endl;
+                            OnePressTMR = clock();
+                            UpdateOnNextRun = true;
+                            WriteCoordinates(hProcHandle, LOCATION_1);
+                        } else if (GetAsyncKeyState(SAVE_LOCATION_2)) {
+                            std::cout << "saved loc 2" << std::endl;
+                            OnePressTMR = clock();
+                            UpdateOnNextRun = true;
+                            WriteCoordinates(hProcHandle, LOCATION_2);
+                        }
+                    } else {
+                        if(GetAsyncKeyState(SAVE_LOCATION_1)) {
 
-                        OnePressTMR = clock();
-                        UpdateOnNextRun = true;
+                            OnePressTMR = clock();
+                            UpdateOnNextRun = true;
+                            std::cout << "saved loc 1" << std::endl;
+                            positions[LOCATION_1][XCOORD] = GetCoordinate(hProcHandle,XCOORD);
+                            positions[LOCATION_1][YCOORD] = GetCoordinate(hProcHandle,YCOORD);
+                            positions[LOCATION_1][ZCOORD] = GetCoordinate(hProcHandle,ZCOORD);
 
-                        positions[LOCATION_1][XCOORD] = GetCoordinate(hProcHandle,XCOORD);
-                        positions[LOCATION_1][YCOORD] = GetCoordinate(hProcHandle,YCOORD);
-                        positions[LOCATION_1][ZCOORD] = GetCoordinate(hProcHandle,ZCOORD);
+                        } else if (GetAsyncKeyState(SAVE_LOCATION_2)) {
+                            std::cout << "loaded loc 2" << std::endl;
+                            OnePressTMR = clock();
+                            UpdateOnNextRun = true;
+                            //changes the text to update on next display
+                            positions[LOCATION_2][XCOORD] = GetCoordinate(hProcHandle,XCOORD);
+                            positions[LOCATION_2][YCOORD] = GetCoordinate(hProcHandle,YCOORD);
+                            positions[LOCATION_2][ZCOORD] = GetCoordinate(hProcHandle,ZCOORD);
 
-                    } else if (GetAsyncKeyState(SAVE_LOCATION_2)) {
-                        OnePressTMR = clock();
-                        UpdateOnNextRun = true;
-                        //changes the text to update on next display
-                        positions[LOCATION_2][XCOORD] = GetCoordinate(hProcHandle,XCOORD);
-                        positions[LOCATION_2][YCOORD] = GetCoordinate(hProcHandle,YCOORD);
-                        positions[LOCATION_2][ZCOORD] = GetCoordinate(hProcHandle,ZCOORD);
-
-                    } else if (GetAsyncKeyState(LOAD_LOCATION_1)) {
-                        OnePressTMR = clock();
-                        UpdateOnNextRun = true;
-                        WriteCoordinates(hProcHandle, LOCATION_1);
-                    } else if (GetAsyncKeyState(LOAD_LOCATION_2)) {
-                        OnePressTMR = clock();
-                        UpdateOnNextRun = true;
-                        WriteCoordinates(hProcHandle, LOCATION_2);
+                        } 
                     }
                 }
 				
                 if (ableToMove) {
                     UpdateOnNextRun = true;
-
+                    
 					bool move=false;
                     iPressed=false;
                     jPressed=false;
@@ -615,6 +625,8 @@ DWORD getClosestPlayer(HANDLE hProcHandle) {
 	return closestPlayer;
 }
 
+
+
 int getPlayerHealth(HANDLE hProcHandle,int player) {	
 	DWORD players = 0x004E4E08;
 	DWORD addressOfNumPlayers = 0x004E4E10;
@@ -693,6 +705,46 @@ void toggleFastReload(HANDLE hProcHandle) {
 	WriteProcessMemory (hProcHandle, (BYTE*)(addyOfGun+0x28), &speed, sizeof(speed), NULL);
 }
 
+float getPlayerDistance(HANDLE hProcHandle, int playerNum) {
+    DWORD players = 0x004E4E08;
+	DWORD addressOfNumPlayers = 0x004E4E10;
+	DWORD numPlayers;
+	ReadProcessMemory (hProcHandle, (LPCVOID)addressOfNumPlayers, &numPlayers, 4, NULL);
+	DWORD health = {0};
+	
+	DWORD playersArray;
+	ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
+
+	int closestPlayer = -1;
+	DWORD closestDistance = 9999999;
+	
+		DWORD addressOfPlayerState = (playersArray+(0x4*playerNum));
+		DWORD playerState;
+		ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
+		float distancebetweenus = -1;
+		if (playerState != 0 && getPlayerHealth(hProcHandle,playerNum) != -1) {
+			DWORD xcoord = GetCoordinate(hProcHandle,XCOORD);
+			DWORD ycoord = GetCoordinate(hProcHandle,YCOORD);
+			DWORD zcoord = GetCoordinate(hProcHandle,ZCOORD);
+			float myxcoord = *(float *)&xcoord;
+			float myycoord = *(float *)&ycoord;
+			float myzcoord = *(float *)&zcoord;
+
+			xcoord = GetPlayerCoordinate(hProcHandle,playerState,XCOORD);
+			ycoord = GetPlayerCoordinate(hProcHandle,playerState,YCOORD);
+			zcoord = GetPlayerCoordinate(hProcHandle,playerState,ZCOORD);
+			float hisxcoord = *(float *)&xcoord;
+			float hisycoord = *(float *)&ycoord;
+			float hiszcoord = *(float *)&zcoord;
+
+			distancebetweenus = sqrtf((hisxcoord-myxcoord)*(hisxcoord-myxcoord) + (hisycoord-myycoord)*(hisycoord-myycoord) + (hiszcoord-myzcoord)*(hiszcoord-myzcoord));
+			//std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
+			//std::cout << "player " <<  player << "  distance = " << distancebetweenus << std::endl;
+			
+		} 
+    return distancebetweenus;
+}
+
 void displayESP(HANDLE hProcHandle) {
     DWORD numPlayers;
     DWORD addressOfNumPlayers = 0x004E4E10;
@@ -700,14 +752,14 @@ void displayESP(HANDLE hProcHandle) {
     
 	for (int player = 0; player < numPlayers; player++) {
         int health = getPlayerHealth(hProcHandle,player);
-        int armour = getPlayerArmour(hProcHandle,player);
+
+		int armour = getPlayerArmour(hProcHandle,player);
         float distance = getPlayerDistance(hProcHandle,player);
-        
-		if (health == -1) {
+        if (health == -1) {
             std::cout << "player " <<  player << " health: DEAD!" << std::endl;
         } else {
             std::cout << "player " <<  player << " health: " << health << " | ";
-            std::cout << "armour: " << armour << " | ";
+			std::cout << "armour: " << armour << " | ";
             std::cout << "distance from you: " << distance << std::endl;
         }
     }
