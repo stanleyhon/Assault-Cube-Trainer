@@ -27,8 +27,7 @@
 #define PI 3.14159265
 
 int getPlayerHealth(HANDLE hProcHandle, int player);
-void WriteToMemory(HANDLE hProcHandle);
-DWORD FindDmaAddy(int PointerLevel, HANDLE hProcHandle, DWORD Offsets[], DWORD BaseAddress);
+DWORD findHigherLevelPointer(int pointerLevel, HANDLE hProcHandle, DWORD offsets[], DWORD baseAddress);
 DWORD GetCoordinate(HANDLE hProcHandle, int coordinate);
 DWORD GetPlayerCoordinate(HANDLE hProcHandle, DWORD playeraddress, int coordinate);
 DWORD GetHealth(HANDLE hProcHandle);
@@ -49,19 +48,6 @@ bool UpdateOnNextRun; //used to update the display menu only when something chan
 void toggleFastReload(HANDLE hProcHandle);
 void displayESP(HANDLE hProcHandle);
 int getPlayerArmour(HANDLE hProcHandle,int player);
-
-//-------AMMO VARS--------
-//number we are going to overwrite the current ammo with in bytes
-bool AmmoStatus; // used to DEFine wether ammo is on or not
-BYTE AmmoValue[] = {0x64,0x00,0x00,0x00};
-DWORD AmmoBaseAddress = {0x004DF73C};
-DWORD AmmoOffsets[] = {0x378, 0x14, 0x0}; //3 LEVEL pointer
-
-//-------HEALTH VARS--------
-bool HealthStatus; // used to DEFine wether ammo is on or not
-BYTE HealthValue[] ={0x39,0x5,0x0,0x0};
-DWORD HealthBaseAddress = {0x004DF73C};
-DWORD HealthOffsets[] = {0xF4}; // 1 level pointer
 
 //-------Location VARS--------
 bool TeleportStatus = true; // used to DEFine whether teleport is allowed
@@ -107,16 +93,12 @@ int main() {
     DWORD dwProcId = NULL;
     HANDLE hProcHandle = NULL;
     UpdateOnNextRun = true;
-    std::string sAmmoStatus;
-    std::string sHealthStatus;
     std::string sTeleportStatus;
     std::string iStatus;
 	std::string sBlinkStatus;
 	std::string sQuickAimStatus;
     std::string isAutomaticOn;
 	isAutomaticOn = "OFF";
-    sAmmoStatus = "OFF";
-    sHealthStatus = "OFF";
     sTeleportStatus = "OFF";
     iStatus = "OFF";
 	sBlinkStatus = "OFF";
@@ -133,19 +115,14 @@ int main() {
 			toggleFastReload(hProcHandle);
 		} 
         if(clock() - GameAvailTMR > 1000) {
-			//getClosestPlayer(hProcHandle);
             GameAvailTMR = clock();
-            // Declare game unavailable by default
-            // if it is available then it will change immediately
             IsGameAvail = false;
-            // Check a valid window is available
-            // Get Window Handle
+
+			// The following is standard code found online to find a process, and get a handle
             hGameWindow = FindWindow( NULL, LGameWindow);
             if (hGameWindow) {
                 GetWindowThreadProcessId (hGameWindow, &dwProcId);
-                //If it is a valid id we continue to try and open the process
                 if (dwProcId != 0) {
-                    // Get Process Handle
                     hProcHandle = OpenProcess (PROCESS_ALL_ACCESS, FALSE, dwProcId);
                     if (hProcHandle == INVALID_HANDLE_VALUE || hProcHandle == NULL) {
                         GameStatus = "Failed to open process for valid handle";
@@ -162,21 +139,20 @@ int main() {
 
             // if UpdateNextRun is called or a number of seconds without updates have gone by an auto update is done
             // to make sure game is available etc.
-            if (UpdateOnNextRun || clock() - timeSinceLastUpdate > 50)
-            {
+            if (UpdateOnNextRun || clock() - timeSinceLastUpdate > 50) {
 				
                 system("cls");
                 if (espActive) {
-					std::cout << "----------------------------------------------------" << std::endl;
+					std::cout << "------------------------------------------------------------" << std::endl;
 					std::cout << "        ESP" << std::endl;
-					std::cout << "----------------------------------------------------" << std::endl << std::endl;
+					std::cout << "------------------------------------------------------------" << std::endl << std::endl;
 					std::cout << "        Press [F12] to go back to main menu" << std::endl<<std::endl;
 					displayESP(hProcHandle);
 				} else {
-                    std::cout << "----------------------------------------------------" << std::endl;
-                    std::cout << "        AssaultCube memory hacker" << std::endl;
-                    std::cout << "----------------------------------------------------" << std::endl << std::endl;
-                    std::cout << "GAME STATUS:"<< GameStatus  <<"   " << std::endl << std::endl;
+                    std::cout << "------------------------------------------------------------" << std::endl;
+                    std::cout << "        Video Game Vulnerabilities Assault Cube Hack " << std::endl;
+                    std::cout << "------------------------------------------------------------" << std::endl << std::endl;
+                    std::cout << "GAME STATUS:" << GameStatus  << "   " << std::endl << std::endl;
                     std::cout << "[F4] Save Location 1" << std::endl;
                     std::cout << "[F5] Save Location 2" << std::endl;
                     std::cout << "[F6] Load Location 1" << std::endl;
@@ -189,10 +165,6 @@ int main() {
                 }
                 UpdateOnNextRun = false;
                 timeSinceLastUpdate = clock();
-            }
-		
-            if (IsGameAvail) {
-                WriteToMemory (hProcHandle);
             }
         }
 
@@ -450,47 +422,29 @@ int main() {
     return ERROR_SUCCESS;
 }
 
-//Handles Dynamic memory allocation
-//Receives how high the pointer level is e.g. 4 levels and from that calculates the initial address
-//the offset values and the memory addresses for those offsets
-DWORD FindDmaAddy (int PointerLevel, HANDLE hProcHandle, DWORD Offsets[], DWORD BaseAddress) {
+DWORD findHigherLevelPointer (int pointerLevel, HANDLE hProcHandle, DWORD offsets[], DWORD baseAddress) {
     //DECLARE BASE ADDRESS
-    DWORD pointer = BaseAddress;             // Declare a pointer of DWORD
+    DWORD pointer = baseAddress;             // Declare a pointer of DWORD
     //USED TO output the contents in the pointer
     DWORD pTemp;
 
     DWORD pointerAddr;
-    for (int i = 0; i < PointerLevel; i ++) {
+	// Loop around adding the offsets to the base address and return the value
+    for (int i = 0; i < pointerLevel; i ++) {
         if (i == 0) {
             ReadProcessMemory(hProcHandle, (LPCVOID)pointer, &pTemp, 4, NULL);
         }
-        //add first offset to that address
-        pointerAddr = pTemp + Offsets[i];   // Set p1 to content of p + offset
-
-        //Read memory one more time and exit the loop
+        pointerAddr = pTemp + offsets[i];
         ReadProcessMemory (hProcHandle, (LPCVOID)pointerAddr, &pTemp, 4, NULL);
     }
     return pointerAddr;
-}
-
-void WriteToMemory(HANDLE hProcHandle) {
-    if (AmmoStatus) {
-        DWORD AmmoAddressToWrite = FindDmaAddy(3, hProcHandle, AmmoOffsets, AmmoBaseAddress);
-        WriteProcessMemory( hProcHandle, (BYTE*)AmmoAddressToWrite, &AmmoValue, sizeof(AmmoValue), NULL);
-    }
-
-    if (HealthStatus) {
-        //because health address is only one pointer in we send only to FindDmaAddy
-        DWORD HealthAddressToWrite = FindDmaAddy(1, hProcHandle, HealthOffsets, HealthBaseAddress);
-        WriteProcessMemory( hProcHandle, (BYTE*)HealthAddressToWrite, &HealthValue, sizeof(HealthValue), NULL);
-    }
 }
 
 DWORD GetCoordinate(HANDLE hProcHandle, int coordinate) {
     //std::cout << "ran getoordinate with" << coordinate << std::endl;
     DWORD LocationOffset[] = {LocationOffsets[coordinate]};
     //std::cout << "location offset "<<coordinate<<" is "<<LocationOffsets[coordinate]<<std::endl;
-    DWORD coordinateLocation = (FindDmaAddy(1, hProcHandle, LocationOffset, LocationBaseAddress));
+    DWORD coordinateLocation = (findHigherLevelPointer(1, hProcHandle, LocationOffset, LocationBaseAddress));
     DWORD coordinateValue;
     ReadProcessMemory (hProcHandle, (LPCVOID)coordinateLocation, &coordinateValue, 4, NULL);
     return coordinateValue;
@@ -509,7 +463,7 @@ DWORD GetAngle(HANDLE hProcHandle, int direction) {
     //std::cout << "ran getoordinate with" << coordinate << std::endl;
     DWORD AngleOffset[] = {AngleOffsets[direction]};
     //std::cout << "location offset "<<coordinate<<" is "<<LocationOffsets[coordinate]<<std::endl;
-    DWORD angleLocation = (FindDmaAddy(1, hProcHandle, AngleOffset, LocationBaseAddress));
+    DWORD angleLocation = (findHigherLevelPointer(1, hProcHandle, AngleOffset, LocationBaseAddress));
     DWORD angleValue;
     ReadProcessMemory (hProcHandle, (LPCVOID)angleLocation, &angleValue, 4, NULL);
     return angleValue;
@@ -519,7 +473,7 @@ void SetAngle(HANDLE hProcHandle, int direction, float angle) {
     //std::cout << "ran getoordinate with" << coordinate << std::endl;
     DWORD AngleOffset[] = {AngleOffsets[direction]};
     //std::cout << "location offset "<<coordinate<<" is "<<LocationOffsets[coordinate]<<std::endl;
-    DWORD angleLocation = (FindDmaAddy(1, hProcHandle, AngleOffset, LocationBaseAddress));
+    DWORD angleLocation = (findHigherLevelPointer(1, hProcHandle, AngleOffset, LocationBaseAddress));
     
 	// Write the angle to memory
 	WriteProcessMemory (hProcHandle, (BYTE*)angleLocation, &angle, sizeof(angle), NULL);
@@ -531,9 +485,9 @@ void WriteCoordinates(HANDLE hProcHandle, int locationNumber) {
     DWORD YLOC[] = {LocationOffsets[YCOORD]};
     DWORD ZLOC[] = {LocationOffsets[ZCOORD]};
     //std::cout << "location offset "<<coordinate<<" is "<<LocationOffsets[coordinate]<<std::endl;
-    DWORD addressX = (FindDmaAddy(1, hProcHandle, XLOC, LocationBaseAddress));
-    DWORD addressY = (FindDmaAddy(1, hProcHandle, YLOC, LocationBaseAddress));
-    DWORD addressZ = (FindDmaAddy(1, hProcHandle, ZLOC, LocationBaseAddress));
+    DWORD addressX = (findHigherLevelPointer(1, hProcHandle, XLOC, LocationBaseAddress));
+    DWORD addressY = (findHigherLevelPointer(1, hProcHandle, YLOC, LocationBaseAddress));
+    DWORD addressZ = (findHigherLevelPointer(1, hProcHandle, ZLOC, LocationBaseAddress));
 
     WriteProcessMemory (hProcHandle, (BYTE*)addressX, &positions[locationNumber][XCOORD], sizeof(positions[locationNumber][XCOORD]), NULL);
     WriteProcessMemory (hProcHandle, (BYTE*)addressY, &positions[locationNumber][YCOORD], sizeof(positions[locationNumber][YCOORD]), NULL);
@@ -542,7 +496,7 @@ void WriteCoordinates(HANDLE hProcHandle, int locationNumber) {
 
 void WriteCoordinate (HANDLE hProcHandle, int coordinate, float valueToWrite) {
     DWORD Location[] = {LocationOffsets[coordinate]};
-    DWORD address = (FindDmaAddy(1, hProcHandle, Location, LocationBaseAddress));
+    DWORD address = (findHigherLevelPointer(1, hProcHandle, Location, LocationBaseAddress));
 	//std::cout << "ACTUAL WRITING " << valueToWrite << std::endl;
     WriteProcessMemory (hProcHandle, (BYTE*)address, &valueToWrite, sizeof(valueToWrite), NULL);
 }
@@ -740,18 +694,62 @@ void toggleFastReload(HANDLE hProcHandle) {
 }
 
 void displayESP(HANDLE hProcHandle) {
-	DWORD numPlayers;
+    DWORD numPlayers;
     DWORD addressOfNumPlayers = 0x004E4E10;
-	ReadProcessMemory (hProcHandle, (LPCVOID)addressOfNumPlayers, &numPlayers, 4, NULL);
-    for (int player = 0; player < numPlayers; player++) {
+    ReadProcessMemory (hProcHandle, (LPCVOID)addressOfNumPlayers, &numPlayers, 4, NULL);
+    
+	for (int player = 0; player < numPlayers; player++) {
         int health = getPlayerHealth(hProcHandle,player);
-		int armour = getPlayerArmour(hProcHandle,player);
-        if (health == -1) {
+        int armour = getPlayerArmour(hProcHandle,player);
+        float distance = getPlayerDistance(hProcHandle,player);
+        
+		if (health == -1) {
             std::cout << "player " <<  player << " health: DEAD!" << std::endl;
         } else {
             std::cout << "player " <<  player << " health: " << health << " | ";
-			std::cout << "armour: " << armour << std::endl;
+            std::cout << "armour: " << armour << " | ";
+            std::cout << "distance from you: " << distance << std::endl;
         }
     }
-    
+   
+}
+
+float getPlayerDistance(HANDLE hProcHandle, int playerNum) {
+    DWORD players = 0x004E4E08;
+    DWORD addressOfNumPlayers = 0x004E4E10;
+    DWORD numPlayers;
+    ReadProcessMemory (hProcHandle, (LPCVOID)addressOfNumPlayers, &numPlayers, 4, NULL);
+    DWORD health = {0};
+       
+    DWORD playersArray;
+    ReadProcessMemory (hProcHandle, (LPCVOID)players, &playersArray, 4, NULL);
+ 
+    int closestPlayer = -1;
+    DWORD closestDistance = 9999999;
+       
+    DWORD addressOfPlayerState = (playersArray+(0x4*playerNum));
+    DWORD playerState;
+    ReadProcessMemory (hProcHandle, (LPCVOID)(addressOfPlayerState), &playerState, 4, NULL);
+    float distancebetweenus = -1;
+    if (playerState != 0 && getPlayerHealth(hProcHandle,playerNum) != -1) {
+            DWORD xcoord = GetCoordinate(hProcHandle,XCOORD);
+            DWORD ycoord = GetCoordinate(hProcHandle,YCOORD);
+            DWORD zcoord = GetCoordinate(hProcHandle,ZCOORD);
+            float myxcoord = *(float *)&xcoord;
+            float myycoord = *(float *)&ycoord;
+            float myzcoord = *(float *)&zcoord;
+ 
+            xcoord = GetPlayerCoordinate(hProcHandle,playerState,XCOORD);
+            ycoord = GetPlayerCoordinate(hProcHandle,playerState,YCOORD);
+            zcoord = GetPlayerCoordinate(hProcHandle,playerState,ZCOORD);
+            float hisxcoord = *(float *)&xcoord;
+            float hisycoord = *(float *)&ycoord;
+            float hiszcoord = *(float *)&zcoord;
+ 
+            distancebetweenus = sqrtf((hisxcoord-myxcoord)*(hisxcoord-myxcoord) + (hisycoord-myycoord)*(hisycoord-myycoord) + (hiszcoord-myzcoord)*(hiszcoord-myzcoord));
+            //std::cout << "player " <<  player << " hisxcoord " << hisxcoord << " hisycoord " << hisycoord << " hiszcoord " << hiszcoord << std::endl;
+            //std::cout << "player " <<  player << "  distance = " << distancebetweenus << std::endl;
+                       
+    }
+	return distancebetweenus;
 }
