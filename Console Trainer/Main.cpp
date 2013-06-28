@@ -1,5 +1,7 @@
-/*C++ CONSOLE TRAINER ENJOY*/
+/* Written by Daniel Morton, George el boustani, Christopher tin loi and Stanley Hon */
 
+
+/* some core process hooking code and keypress hooking code borrowed from internet sources */
 #include <iostream>
 #include <iomanip>
 #include <sstream>
